@@ -1,0 +1,21 @@
+/**
+\mainpage 00 Zadání projektu do předmětu IZG.
+
+\tableofcontents
+
+\image html docSrc/images/vystup.png
+\image html docSrc/images/teaser.svg  width=1000
+\image html docSrc/images/output.png "Takto by měl vypadat výstup projektu"
+
+Vašim úkolem je naimplementovat jednoduchou grafickou kartu (gpu).
+A dále implementovat funkci pro vykreslení modelů.
+Všechny soubory, které se vás týkají jsou ve složce studentSolution/src/studentSolution/
+V souboru studentSolution/src/studentSolution/gpu.cpp implementujte funkci \ref student_GPU_run - funcionalita vámi implementované grafické karty.
+V souboru studentSolution/src/studentSolution/prepareModel.cpp implementujete funkce \ref student_prepareModel, \ref student_drawModel_vertexShader a \ref student_drawModel_fragmentShader.
+Tyto funkce slouží pro zpracování načteného souboru s modelem do paměti grafické karty a command bufferu.
+Kromě toho se ve složce nachází ještě soubory:
+- solutionInterface/src/solutionInterface/gpu.hpp - ten obsahuje deklarace struktur a konstant pro grafickou kartu.
+- solutionInterface/src/solutionInterface/modelFwd.hpp - ten obsahuje deklarace struktur a konstant pro model
+
+ 
+*/

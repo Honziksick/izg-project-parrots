@@ -1,0 +1,26 @@
+var searchData=
+[
+  ['na_20projekt_0',['01 Jak na projekt?',['../p01_jakNaTo.html',1,'']]],
+  ['naprogramovat_20brzké_20per_20fragment_20operace_1',['Úkol 5 - Naprogramovat brzké Per Fragment Operace',['../p12_pfo_early.html#pfo_early_tasks',1,'']]],
+  ['naprogramovat_20ořez_20trojúhelníků_20blízkou_20ořezovou_20rovinou_2',['Úkol 7 - naprogramovat ořez trojúhelníků blízkou ořezovou rovinou',['../p14_pipeline_clipping.html#clip',1,'']]],
+  ['naprogramovat_20pozdní_20per_20fragment_20operace_3',['Úkol 6 - Naprogramovat pozdní Per Fragment Operace',['../p13_per_fragment_operations.html#pfo_late_tasks',1,'']]],
+  ['naprogramovat_20primitive_20assembly_20jednotku_20perspektivní_20dělení_20zahazování_20odvrácených_20primitiv_20rasterizaci_20a_20pouštění_20fragment_20shaderu_4',['Úkol 4 - naprogramovat Primitive Assembly jednotku, perspektivní dělení, zahazování odvrácených primitiv, rasterizaci a pouštění fragment shaderu',['../p09_rasterization_theory.html#Raster',1,'']]],
+  ['nastavení_5',['nastavení',['../p03_commandTasks.html#BindTask',1,'Úkol 0: Aktivování objektů a nastavení'],['../p03_commandTasks.html#activateTheory',1,'Teorie: Nastavování aktivních objektů GPU a zápisu nastavení']]],
+  ['nastavení_20vertex_20array_6',['Tabulka nastavení Vertex Array',['../p07_pipeline_vector_part_tasks.html#ss_vertexArray',1,'']]],
+  ['nastavování_20aktivních_20objektů_20gpu_20a_20zápisu_20nastavení_7',['Teorie: Nastavování aktivních objektů GPU a zápisu nastavení',['../p03_commandTasks.html#activateTheory',1,'']]],
+  ['nedělejte_8',['22 Časté chyby, které nedělejte',['../p22_caste_chyby.html',1,'']]],
+  ['neindexované_20a_20indexované_20kreslení_9',['Neindexované a indexované kreslení',['../p07_pipeline_vector_part_tasks.html#index_draw',1,'']]],
+  ['nerasterizujete_20mimo_20okno_10',['Test 23 - Ověření, zda nerasterizujete mimo okno',['../p09_rasterization_theory.html#ss_raster_test_2',1,'']]],
+  ['never_11',['NEVER',['../solutionInterface_2src_2solutionInterface_2gpu_8hpp.html#ad3d7abe532ca7be55ba9e8e03916e2e0a443475558f0168dff92ecde26b98ae5a',1,'gpu.hpp']]],
+  ['node_12',['Node',['../structNode.html',1,'']]],
+  ['nofbuffers_13',['nofBuffers',['../structModel.html#a0b12753c02b4f28c0bd54be0a5bd8b10',1,'Model']]],
+  ['nofchildren_14',['nofChildren',['../structNode.html#ad0ce456a3b928e29de17c1bc79278adb',1,'Node']]],
+  ['nofcommands_15',['nofCommands',['../structCommandBuffer.html#a5a4e731514b5998dad67189ca3612f3e',1,'CommandBuffer']]],
+  ['nofindices_16',['nofIndices',['../structMesh.html#ad60502867a78d6e442172d1ea5b679d6',1,'Mesh']]],
+  ['nofmeshes_17',['nofMeshes',['../structModel.html#a3ba7fb1915ee8e2e2b6052bc356c2618',1,'Model']]],
+  ['nofroots_18',['nofRoots',['../structModel.html#a41a135cc6f72c29e282f2c4dcc299cb1',1,'Model']]],
+  ['noftextures_19',['nofTextures',['../structModel.html#ae6c95be3cb0d5759cb8f5233db7362ef',1,'Model']]],
+  ['nofvertices_20',['nofVertices',['../structDrawCommand.html#a4a7376486faf9f07fccb7de82d86566b',1,'DrawCommand']]],
+  ['normal_21',['normal',['../structMesh.html#abc59ae5bf8f9b8d5b806e6e91ae5e1f5',1,'Mesh']]],
+  ['notequal_22',['NOTEQUAL',['../solutionInterface_2src_2solutionInterface_2gpu_8hpp.html#ad3d7abe532ca7be55ba9e8e03916e2e0a94fbd04a26dff1689ee02634be6aaf1f',1,'gpu.hpp']]]
+];

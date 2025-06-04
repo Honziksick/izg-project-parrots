@@ -1,0 +1,53 @@
+\chapter{13 Pozdní Per Fragment Operace}
+\hypertarget{p13_per_fragment_operations}{}\label{p13_per_fragment_operations}\index{13 Pozdní Per Fragment Operace@{13 Pozdní Per Fragment Operace}}
+Pozdní Per Fragment Operace se nachází za fragment shaderem. Jsou složeny z\+:
+\begin{DoxyItemize}
+\item Zahazování fragmentů (operace discard)
+\item Možné modifikace stencilového bufferu (stencil operace dppass)
+\item Možné modifikace hloubkového bufferu (pokud je depth buffer přítomen)
+\item Možného zápisu barvy do barevného bufferu (pokud je barevný buffer přítomen)
+\end{DoxyItemize}
+
+\hypertarget{p13_per_fragment_operations_pfo_late_discrad}{}\doxysection{\texorpdfstring{Zahazování fragmentu (operace discard)}{Zahazování fragmentu (operace discard)}}\label{p13_per_fragment_operations_pfo_late_discrad}
+Zahazování fragmentů je určeno na základě \doxylink{structOutFragment_aa9b70f2f945e7b287321be9a1309f512}{Out\+Fragment\+::discard}. Pokud je nastavena na true, je fragment zahozen a jeho další zpracovávání je ukončeno.
+
+\hypertarget{p13_per_fragment_operations_pfo_late_stencil}{}\doxysection{\texorpdfstring{Modifikace stencilového bufferu}{Modifikace stencilového bufferu}}\label{p13_per_fragment_operations_pfo_late_stencil}
+Zápis do stencilového bufferu je umožněn ještě jednou, naposled. Pokud je zápis povolen a pokud je stencil buffer přítomen, provede se nad ním operace \doxylink{structStencilOps_ad94f25bfe86fb216c6bb3229cea969d3}{Stencil\+Ops\+::dppass}.
+
+\hypertarget{p13_per_fragment_operations_pfo_late_depth}{}\doxysection{\texorpdfstring{Modifikace hloubkového bufferu}{Modifikace hloubkového bufferu}}\label{p13_per_fragment_operations_pfo_late_depth}
+Zápis hloubky zajistí, že budoucí fragmenty nepřepíší barvu bližších objektů. Zápis je povolen v případě, že je přítomen hloubkový buffer.
+
+\hypertarget{p13_per_fragment_operations_pfo_late_color}{}\doxysection{\texorpdfstring{Modifikace barevného bufferu}{Modifikace barevného bufferu}}\label{p13_per_fragment_operations_pfo_late_color}
+Zápis barvy do barevného bufferu je umožněn, pokud je barevný buffer přítomen.
+
+
+
+Pokud se má zapsat barva, je zapsána pomocí takzvaného Blendingu. Blending využívá průhlednosti fragmentu k přímíchání nové barvy ke stávající v color bufferu. Blending má v reálu mnoho nastavení, v projetku se používá pouze alpha blending. Fragmenty mají barvu RGBA, kde A -\/ $\alpha$ je tzv. neprůhlednost.~\newline
+ Pokud má nový fragment $\alpha=1$ -\/ je absolutně neprůhledný -\/ plně přepíše barvu ve framebufferu.~\newline
+ Pokud má nový fragment $\alpha=0$ -\/ je absolutně průhledný -\/ vůbec barvu ve framebuffer nezmění.~\newline
+ Pokud má hodnotu někde mezi, tak se barva lineárně smíchá\+: \[\displaystyle colorBuffer_{rgb} = colorBuffer_{rgb} \cdot (1-\alpha) + gl\_FragColor_{rgb} \cdot \alpha\] Kde $\alpha=gl\_FragColor_a$\hypertarget{p13_per_fragment_operations_pfo_late_tasks}{}\doxysection{\texorpdfstring{Úkol 6 -\/ Naprogramovat pozdní Per Fragment Operace}{Úkol 6 - Naprogramovat pozdní Per Fragment Operace}}\label{p13_per_fragment_operations_pfo_late_tasks}
+\hypertarget{p13_per_fragment_operations_pfo_late_discard_tasks}{}\doxysubsection{\texorpdfstring{Test 34 -\/ Discard}{Test 34 - Discard}}\label{p13_per_fragment_operations_pfo_late_discard_tasks}
+Tento test zkouší, zda funguje operace discard. 
+\begin{DoxyCode}{0}
+\DoxyCodeLine{./izgProject\ -\/c\ -\/-\/test\ 34}
+
+\end{DoxyCode}
+\hypertarget{p13_per_fragment_operations_pfo_late_stencil_tasks}{}\doxysubsection{\texorpdfstring{Test 35 -\/ Modifikace stencilového bufferu při dppass}{Test 35 - Modifikace stencilového bufferu při dppass}}\label{p13_per_fragment_operations_pfo_late_stencil_tasks}
+Tento test zkouší, zda funguje stencilová operace při dppass 
+\begin{DoxyCode}{0}
+\DoxyCodeLine{./izgProject\ -\/c\ -\/-\/test\ 35}
+
+\end{DoxyCode}
+\hypertarget{p13_per_fragment_operations_pfo_late_depth_tasks}{}\doxysubsection{\texorpdfstring{Test 36 -\/ Modifikace depth bufferu}{Test 36 - Modifikace depth bufferu}}\label{p13_per_fragment_operations_pfo_late_depth_tasks}
+Tento test zkouší, zda funguje zápis do hloubkového bufferu. 
+\begin{DoxyCode}{0}
+\DoxyCodeLine{./izgProject\ -\/c\ -\/-\/test\ 36}
+
+\end{DoxyCode}
+\hypertarget{p13_per_fragment_operations_pfo_late_color_tasks}{}\doxysubsection{\texorpdfstring{Test 37 -\/ Zápis barvy a blending}{Test 37 - Zápis barvy a blending}}\label{p13_per_fragment_operations_pfo_late_color_tasks}
+Tento test zkouší, zda funguje zápis do barevného bufferu. 
+\begin{DoxyCode}{0}
+\DoxyCodeLine{./izgProject\ -\/c\ -\/-\/test\ 37}
+
+\end{DoxyCode}
+ 

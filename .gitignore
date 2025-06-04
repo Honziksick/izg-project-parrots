@@ -1,0 +1,25 @@
+### Personal - Ignore
+**/assignment
+**/build
+**/*.zip
+**/izgProject
+**/izgProject.exe
+
+### Personal - Allow
+!**/doc
+!**/docSrc
+!**/examples
+!**/framework
+!**/libs
+!**/resources
+!**/solutionInterface
+!**/src
+!**/studentSolution
+!**/teacherSolutionBinary
+!**/tests
+!**/izgProject_linux.bin
+!**/izgProject_windows.exe
+
+### IDEs
+**/.idea
+**/.vscode

@@ -1,0 +1,27 @@
+var searchData=
+[
+  ['1_20bindprogram_0',['Test 1 - bindProgram',['../p03_commandTasks.html#bindProgram',1,'']]],
+  ['1_20vrchol_20ořezán_1',['Test 40 - Ořez trojúhelníku, když je 1 vrchol ořezán',['../p14_pipeline_clipping.html#clipping_1',1,'']]],
+  ['10_20per_20fragment_20operace_2',['10 Per Fragment Operace',['../p10_per_fragment_operations.html',1,'']]],
+  ['10_20vykreslování_20modelů_20fragment_20shader_20drawmode_5ffragmentshader_3',['Úkol 10 - Vykreslování modelů - fragment shader drawMode_fragmentShader',['../p15_drawModel.html#drawModel_fs',1,'']]],
+  ['10_20zápis_20do_20vícero_20framebufferů_4',['Test 10 - zápis do vícero framebufferů',['../p04_commands_clear_tasks.html#clearMultipleFBO',1,'']]],
+  ['11_20finální_20render_5',['Úkol 11 - finální render',['../p15_drawModel.html#finalCountDown',1,'']]],
+  ['11_20usercommand_6',['Test 11 - UserCommand',['../p05_commands_user_sub_draw_tasks.html#userCommandT',1,'']]],
+  ['12_20brzké_20per_20fragment_20operace_7',['12 Brzké per fragment operace',['../p12_pfo_early.html',1,'']]],
+  ['12_20drawcommand_20a_20počítání_20gl_5fdrawid_8',['Test 12 - DrawCommand a počítání gl_DrawID',['../p05_commands_user_sub_draw_tasks.html#drawIDTest',1,'']]],
+  ['13_20pozdní_20per_20fragment_20operace_9',['13 Pozdní Per Fragment Operace',['../p13_per_fragment_operations.html',1,'']]],
+  ['13_20sub_20command_10',['Test 13 - sub command',['../p05_commands_user_sub_draw_tasks.html#subCmdPractice',1,'']]],
+  ['14_20ořez_11',['14 Ořez',['../p14_pipeline_clipping.html',1,'']]],
+  ['14_20spouštění_20vertex_20shaderu_12',['Test 14 - spouštění vertex shaderu',['../p07_pipeline_vector_part_tasks.html#drawCmdPractice',1,'']]],
+  ['15_20implementace_20vykreslování_20modelů_20se_20stíny_20soubor_20student_20preparemodel_20cpp_13',['15 Implementace vykreslování modelů se stíny - soubor student/prepareModel.cpp',['../p15_drawModel.html',1,'']]],
+  ['15_20test_20číslování_20vykreslovacích_20příkazů_14',['Test 15 - test číslování vykreslovacích příkazů',['../p07_pipeline_vector_part_tasks.html#ShaderInterFace_gl_DrawID',1,'']]],
+  ['16_20rozdělení_20souborů_20a_20složek_15',['16 Rozdělení souborů a složek',['../p16_rozdeleni.html',1,'']]],
+  ['16_20test_20proloženého_20kreslení_20a_20čistění_16',['Test 16 - test proloženého kreslení a čistění',['../p07_pipeline_vector_part_tasks.html#ss_mixed_clear_draw',1,'']]],
+  ['17_20ověření_20shaderinterface_17',['Test 17 - ověření ShaderInterface',['../p07_pipeline_vector_part_tasks.html#ss_shaderInterface',1,'']]],
+  ['17_20sestavení_18',['17 Sestavení',['../p17_sestaveni.html',1,'']]],
+  ['18_20číslování_20vrcholů_20s_20indexováním_19',['Test 18 - číslování vrcholů s indexováním.',['../p07_pipeline_vector_part_tasks.html#gl_VertexIDIndex32',1,'']]],
+  ['18_20spouštění_20',['18 Spouštění',['../p18_spousteni.html',1,'']]],
+  ['19_2021_20vertex_20atributy_20vertex_20assembly_20jednotka_21',['Testy 19-21 - Vertex Atributy, Vertex Assembly jednotka',['../p07_pipeline_vector_part_tasks.html#VertexPuller_Att',1,'']]],
+  ['19_20ovládání_22',['19 Ovládání',['../p19_ovladani.html',1,'']]],
+  ['1_3a_20čištění_20framebufferu_23',['Úkol 1: Čištění framebufferu',['../p04_commands_clear_tasks.html#ClearCommandTask',1,'']]]
+];

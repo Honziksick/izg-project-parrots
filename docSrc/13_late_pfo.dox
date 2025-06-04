@@ -1,0 +1,83 @@
+/**
+\page p13_per_fragment_operations 13 Pozdní Per Fragment Operace
+
+Pozdní Per Fragment Operace se nachází za fragment shaderem.
+Jsou složeny z:
+- Zahazování fragmentů (operace discard)
+- Možné modifikace stencilového bufferu (stencil operace dppass)
+- Možné modifikace hloubkového bufferu (pokud je depth buffer přítomen)
+- Možného zápisu barvy do barevného bufferu (pokud je barevný buffer přítomen)
+
+\image html images/pfo_late.svg "Pozdní Per Fragment operace se skládají ze zahazování fragmentů (discard), modifikace stencilového hloubkového a barevného bufferu." width=800
+
+\section pfo_late_discrad Zahazování fragmentu (operace discard)
+
+Zahazování fragmentů je určeno na základě \ref OutFragment::discard.
+Pokud je nastavena na true, je fragment zahozen a jeho další zpracovávání je ukončeno.
+
+\image html images/pfo_discard.svg "Operace discard. Pokud fragment shader nastavil hodnotu fragmentu discard na true, je fragment vyřazen z dalšího zpracování." width=400
+
+
+
+\section pfo_late_stencil Modifikace stencilového bufferu
+Zápis do stencilového bufferu je umožněn ještě jednou, naposled.
+Pokud je zápis povolen a pokud je stencil buffer přítomen, provede se nad ním operace \ref StencilOps::dppass.
+
+\image html images/pfo_stencil_writes.svg "Modifikace stencilového bufferu pomocí pdpass operací. Pokud je přítomen stencilový buffer, je stencilový test zapnut, a je povolen zápis, provede se poslední stencilová opereace dppass nad stencilovým bufferem." width=400
+
+
+
+\section pfo_late_depth Modifikace hloubkového bufferu
+Zápis hloubky zajistí, že budoucí fragmenty nepřepíší barvu bližších objektů.
+Zápis je povolen v případě, že je přítomen hloubkový buffer.
+
+\image html images/pfo_depth_writes.svg "Zápis hloubky do hloubkového buffer. Pokud je přítomen hloubkový buffer, zapíše do něj nová hloubka fragmentu." width=400
+
+
+
+\section pfo_late_color Modifikace barevného bufferu
+Zápis barvy do barevného bufferu je umožněn, pokud je barevný buffer přítomen.
+
+\image html images/pfo_color_writes.svg "Zápis barvy do barevného bufferu je umožněn, pokud je barevný buffer přítomen a zápis není zablokován." width=400
+
+Pokud se má zapsat barva, je zapsána pomocí takzvaného Blendingu.
+Blending využívá průhlednosti fragmentu k přímíchání nové barvy ke stávající v color bufferu.
+Blending má v reálu mnoho nastavení, v projetku se používá pouze alpha blending.
+Fragmenty mají barvu RGBA, kde A - \f$\alpha\f$ je tzv. neprůhlednost.<br>
+Pokud má nový fragment \f$\alpha=1\f$ - je absolutně neprůhledný - plně přepíše barvu ve framebufferu.<br>
+Pokud má nový fragment \f$\alpha=0\f$ - je absolutně průhledný - vůbec barvu ve framebuffer nezmění.<br>
+Pokud má hodnotu někde mezi, tak se barva lineárně smíchá:
+\f[\displaystyle colorBuffer_{rgb} = colorBuffer_{rgb} \cdot (1-\alpha) + gl\_FragColor_{rgb} \cdot \alpha\f]
+Kde \f$\alpha=gl\_FragColor_a\f$
+
+
+
+
+
+\section pfo_late_tasks Úkol 6 - Naprogramovat pozdní Per Fragment Operace
+
+\subsection pfo_late_discard_tasks Test 34 - Discard
+Tento test zkouší, zda funguje operace discard.
+\code{.sh}
+./izgProject -c --test 34
+\endcode
+
+\subsection pfo_late_stencil_tasks Test 35 - Modifikace stencilového bufferu při dppass
+Tento test zkouší, zda funguje stencilová operace při dppass
+\code{.sh}
+./izgProject -c --test 35
+\endcode
+
+\subsection pfo_late_depth_tasks Test 36 - Modifikace depth bufferu
+Tento test zkouší, zda funguje zápis do hloubkového bufferu.
+\code{.sh}
+./izgProject -c --test 36
+\endcode
+
+\subsection pfo_late_color_tasks Test 37 - Zápis barvy a blending
+Tento test zkouší, zda funguje zápis do barevného bufferu.
+\code{.sh}
+./izgProject -c --test 37
+\endcode
+
+*/

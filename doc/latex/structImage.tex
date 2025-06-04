@@ -1,0 +1,57 @@
+\doxysection{Image Struct Reference}
+\hypertarget{structImage}{}\label{structImage}\index{Image@{Image}}
+
+
+This structure represents 2D memory of image. 2D images are used as textures and color or depth buffers of framebuffers. Pixel \mbox{[}x,y\mbox{]} starts at uint8\+\_\+t\texorpdfstring{$\ast$}{*}ptr = ((uint8\+\_\+t\texorpdfstring{$\ast$}{*})data) + y\texorpdfstring{$\ast$}{*}pitch + x\texorpdfstring{$\ast$}{*}bytes\+Per\+Pixel; channel\+Types is swizzling table for colors (RGB,BGR,...) for format == F32\+: bytes\+Per\+Pixel = sizeof(float) \texorpdfstring{$\ast$}{*} channels for format == U8\+: bytes\+Per\+Pixel = sizeof(uint8\+\_\+t) \texorpdfstring{$\ast$}{*} channels.  
+
+
+
+
+{\ttfamily \#include $<$gpu.\+hpp$>$}
+
+\doxysubsubsection*{Public Types}
+\begin{DoxyCompactItemize}
+\item 
+\Hypertarget{structImage_afe74defc826aae605cb2214cbf34c5eb}\label{structImage_afe74defc826aae605cb2214cbf34c5eb} 
+enum \mbox{\hyperlink{structImage_afe74defc826aae605cb2214cbf34c5eb}{Channel}} \{ {\bfseries RED} = 0
+, {\bfseries GREEN}
+, {\bfseries BLUE}
+, {\bfseries ALPHA}
+ \}
+\begin{DoxyCompactList}\small\item\em Channel type. \end{DoxyCompactList}\item 
+\Hypertarget{structImage_a1d53cd4fd9e5b67d38d49bc2c5ebd0db}\label{structImage_a1d53cd4fd9e5b67d38d49bc2c5ebd0db} 
+enum \mbox{\hyperlink{structImage_a1d53cd4fd9e5b67d38d49bc2c5ebd0db}{Format}} \{ {\bfseries U8}
+, {\bfseries F32}
+ \}
+\begin{DoxyCompactList}\small\item\em Format of data. \end{DoxyCompactList}\end{DoxyCompactItemize}
+\doxysubsubsection*{Data Fields}
+\begin{DoxyCompactItemize}
+\item 
+\Hypertarget{structImage_a2d9eabf3628b454331420e4b377538b9}\label{structImage_a2d9eabf3628b454331420e4b377538b9} 
+void \texorpdfstring{$\ast$}{*} {\bfseries data} = nullptr
+\begin{DoxyCompactList}\small\item\em pointer to image data \end{DoxyCompactList}\item 
+\Hypertarget{structImage_af20c22715fcc14fe41d929a5127ac897}\label{structImage_af20c22715fcc14fe41d929a5127ac897} 
+uint32\+\_\+t {\bfseries channels} = 4
+\begin{DoxyCompactList}\small\item\em number of color channels \end{DoxyCompactList}\item 
+\Hypertarget{structImage_a98d0e7ac2ffeca933536b705cbdc5dba}\label{structImage_a98d0e7ac2ffeca933536b705cbdc5dba} 
+\mbox{\hyperlink{structImage_a1d53cd4fd9e5b67d38d49bc2c5ebd0db}{Format}} {\bfseries format} = U8
+\begin{DoxyCompactList}\small\item\em type of data for every channel \end{DoxyCompactList}\item 
+\Hypertarget{structImage_a85765e057e50aaa2da6ffd1e7085f52a}\label{structImage_a85765e057e50aaa2da6ffd1e7085f52a} 
+uint32\+\_\+t {\bfseries pitch} = 0
+\begin{DoxyCompactList}\small\item\em size of row in bytes \end{DoxyCompactList}\item 
+\Hypertarget{structImage_add6fee24fd0db09ee35432b6541e5018}\label{structImage_add6fee24fd0db09ee35432b6541e5018} 
+uint32\+\_\+t {\bfseries bytes\+Per\+Pixel} = 0
+\begin{DoxyCompactList}\small\item\em size of pixel in bytes \end{DoxyCompactList}\item 
+\Hypertarget{structImage_a86d38f6adc2c4bc8285c908460634eac}\label{structImage_a86d38f6adc2c4bc8285c908460634eac} 
+\mbox{\hyperlink{structImage_afe74defc826aae605cb2214cbf34c5eb}{Channel}} {\bfseries channel\+Types} \mbox{[}4\mbox{]} = \{RED,GREEN,BLUE,ALPHA\}
+\begin{DoxyCompactList}\small\item\em only for colors -\/ what colors the channels represent \end{DoxyCompactList}\end{DoxyCompactItemize}
+
+
+\doxysubsection{Detailed Description}
+This structure represents 2D memory of image. 2D images are used as textures and color or depth buffers of framebuffers. Pixel \mbox{[}x,y\mbox{]} starts at uint8\+\_\+t\texorpdfstring{$\ast$}{*}ptr = ((uint8\+\_\+t\texorpdfstring{$\ast$}{*})data) + y\texorpdfstring{$\ast$}{*}pitch + x\texorpdfstring{$\ast$}{*}bytes\+Per\+Pixel; channel\+Types is swizzling table for colors (RGB,BGR,...) for format == F32\+: bytes\+Per\+Pixel = sizeof(float) \texorpdfstring{$\ast$}{*} channels for format == U8\+: bytes\+Per\+Pixel = sizeof(uint8\+\_\+t) \texorpdfstring{$\ast$}{*} channels. 
+
+pitch = width \texorpdfstring{$\ast$}{*} bytes\+Per\+Pixel \mbox{[}\doxylink{structImage}{Image}\mbox{]} 
+
+The documentation for this struct was generated from the following file\+:\begin{DoxyCompactItemize}
+\item 
+solution\+Interface/src/solution\+Interface/\mbox{\hyperlink{solutionInterface_2src_2solutionInterface_2gpu_8hpp}{gpu.\+hpp}}\end{DoxyCompactItemize}
