@@ -8,15 +8,30 @@
 
 #include <studentSolution/gpu.hpp>
 
+
+/******************************************************************************/
+/*                                                                            */
+/*                               MAIN GPU LOGIC                               */
+/*                                                                            */
+/******************************************************************************/
+
 //! [student_GPU_run]
 void student_GPU_run(GPUMemory &mem, const CommandBuffer &cb) {
-    for(uint32_t iCommand = 0; iCommand < cb.nofCommands; iCommand++) {
-        CommandType type = cb.commands[iCommand].type;
-        CommandData data = cb.commands[iCommand].data;
-        handleCommand(mem, type, data);
-    }
+    mem.gl_DrawID = 0;
+
+    // Main loop is separated into its own function, so the draw ID i correctly
+    // incremented when recursively calling main loop for sub-commands
+    executeCommandBuffer(mem, cb);
 } // student_GPU_run()
 //! [student_GPU_run]
+
+static inline void executeCommandBuffer(GPUMemory &memory, const CommandBuffer &commandBuffer) {
+    for(uint32_t iCommand = 0; iCommand < commandBuffer.nofCommands; iCommand++) {
+        const CommandType type = commandBuffer.commands[iCommand].type;
+        CommandData data = commandBuffer.commands[iCommand].data;
+        handleCommand(memory, type, data);
+    }
+}
 
 static inline void handleCommand(GPUMemory &memory, const CommandType type, const CommandData &data) {
     switch(type) {
@@ -74,11 +89,20 @@ static inline void handleCommand(GPUMemory &memory, const CommandType type, cons
             break;
 
         /**********************************************************************/
-        /*                           TODO commands                            */
+        /*                           OTHER commands                           */
         /**********************************************************************/
-        case CommandType::USER_COMMAND:     // TODO: implement user command
-        case CommandType::DRAW:             // TODO: implement draw command
-        case CommandType::SUB_COMMAND:      // TODO: implement sub command
+        case CommandType::USER_COMMAND:
+            handleUserCommand(data.userCommand);
+            break;
+
+        case CommandType::DRAW:
+            handleDrawCommand(memory, data.drawCommand);
+            break;
+
+        case CommandType::SUB_COMMAND:
+            handleSubCommand(memory, data.subCommand.commandBuffer);
+            break;
+
         case CommandType::EMPTY:
         default:
             break;
@@ -140,7 +164,7 @@ static inline void handleClearColorCommand(const GPUMemory &memory, const ClearC
 
             // Clear the pixel
             for(uint32_t iChannel = 0; iChannel < color.channels; iChannel++) {
-                const float channelComponent = pickChannel(clearCommand.value, color.channelTypes[iChannel]);
+                const float channelComponent = getColorChannel(clearCommand.value, color.channelTypes[iChannel]);
 
                 // Clear each channel (R, G, B, A) based on the image format
                 if(color.format == Image::U8) {
@@ -194,6 +218,25 @@ static inline void handleClearStencilCommand(const GPUMemory &memory, const Clea
     }
 } // handleClearStencilCommand()
 
+static inline void handleUserCommand(const UserCommand &userCommand) {
+    if(userCommand.callback) {
+        userCommand.callback(userCommand.data);
+    }
+} // handleUserCommand()
+
+static inline void handleDrawCommand(GPUMemory &memory, const DrawCommand &drawCommand) {
+    (void)drawCommand;
+    // TODO: Implement the draw command handling logic
+    memory.gl_DrawID++; // increment the draw ID for each draw command
+} // handleDrawCommand()
+
+static inline void handleSubCommand(GPUMemory &memory, const CommandBuffer *subCommandBuffer) {
+    // If subCommand isn't NULL, we recursively execute the (sub)command buffer
+    if(subCommandBuffer) {
+        executeCommandBuffer(memory, *subCommandBuffer);
+    }
+} // handleSubCommand()
+
 
 /******************************************************************************/
 /*                                                                            */
@@ -201,17 +244,17 @@ static inline void handleClearStencilCommand(const GPUMemory &memory, const Clea
 /*                                                                            */
 /******************************************************************************/
 
-static inline uint8_t *getPixelMaybeReversed(const Image &img, const uint32_t x, const uint32_t y,
+static inline uint8_t *getPixelMaybeReversed(const Image &image, const uint32_t x, const uint32_t y,
                                              const uint32_t height, const bool yReversed) {
     const uint32_t maybeReversedY = yReversed ? (height - y - 1) : y;
-    return static_cast<uint8_t*>(img.data) + (maybeReversedY * img.pitch) + (x * img.bytesPerPixel);
+    return static_cast<uint8_t*>(image.data) + (maybeReversedY * image.pitch) + (x * image.bytesPerPixel);
 } // getPixelMaybeReversed()
 
 static inline uint8_t castNormalizedFloatToUnsignedInt8(const float value) {
     return static_cast<uint8_t>(glm::clamp(value, 0.f, 1.f) * 255.f + 0.5f);
 } // castNormalizedFloatToUnsignedInt8()
 
-static inline float pickChannel(const glm::vec4 &color, const Image::Channel channel) {
+static inline float getColorChannel(const glm::vec4 &color, const Image::Channel channel) {
     switch(channel) {
         case Image::RED:
             return color.r;

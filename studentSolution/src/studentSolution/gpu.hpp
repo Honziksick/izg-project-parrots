@@ -9,16 +9,37 @@
 
 #include <solutionInterface/gpu.hpp>
 
+
+/******************************************************************************/
+/*                                                                            */
+/*                               MAIN GPU LOGIC                               */
+/*                                                                            */
+/******************************************************************************/
+
 /**
- * @brief Function that executes work stored in command buffer on the gpu memory.
- * @details This function represents the functionality of GPU. It can render
- *          stuff, it can clear framebuffer. It can process work stored in
- *          command buffer
+ * @brief Main entry point for GPU command execution.
  *
- * @param mem GPU memory.
- * @param cb Command buffer - packaged of work sent to the GPU.
+ * @details Initializes the GPU's draw ID counter to zero and processes
+ *          all commands from the provided command buffer. This function
+ *          serves as the primary interface for executing GPU operations.
+ *
+ * @param mem Reference to GPU memory containing all resources.
+ * @param cb Command buffer containing the commands to be executed.
  */
 void student_GPU_run(GPUMemory &mem, const CommandBuffer &cb);
+
+/**
+ * @brief Processes all commands in a command buffer sequentially.
+ *
+ * @details Iterates through each command in the provided command buffer,
+ *          extracts its type and data, and dispatches it to the appropriate
+ *          handler function. This function is used both for the main command
+ *          buffer and for nested sub-command buffers.
+ *
+ * @param memory Reference to GPU memory where operations will be performed.
+ * @param commandBuffer The buffer containing commands to be processed.
+ */
+void executeCommandBuffer(GPUMemory &memory, const CommandBuffer &commandBuffer);
 
 /**
  * @brief Processes a single GPU command.
@@ -128,6 +149,43 @@ void handleClearDepthCommand(const GPUMemory &memory, const ClearDepthCommand &c
  */
 void handleClearStencilCommand(const GPUMemory &memory, const ClearStencilCommand &clearCommand);
 
+/**
+ * @brief Handles custom user-defined commands.
+ *
+ * @details Processes user-defined commands that extend the basic functionality
+ *          of the GPU command system. This allows for custom operations to be
+ *          implemented by applications.
+ *
+ * @param userCommand The user-defined command to be processed.
+ */
+void handleUserCommand(const UserCommand &userCommand);
+
+/**
+ * @brief Handles draw commands for rendering geometry.
+ *
+ * @details Processes draw commands which trigger the rendering pipeline to draw
+ *          primitives using the currently bound program, vertex array, and
+ *          framebuffer. This function implements the vertex and fragment
+ *          processing stages.
+ *
+ * @param memory Reference to GPU memory containing resources needed for rendering.
+ * @param drawCommand Command data containing draw parameters such as primitive type,
+ *                    vertex count, and draw mode.
+ */
+void handleDrawCommand(GPUMemory &memory, const DrawCommand &drawCommand);
+
+/**
+ * @brief Handles execution of nested command buffers.
+ *
+ * @details Processes a sub-command buffer by recursively executing all commands
+ *          contained within it. This allows for hierarchical organization of
+ *          rendering commands and reuse of command sequences.
+ *
+ * @param memory Reference to GPU memory where operations will be performed.
+ * @param subCommandBuffer Pointer to the sub-command buffer to be executed.
+ */
+void handleSubCommand(GPUMemory &memory, const CommandBuffer *subCommandBuffer);
+
 
 /******************************************************************************/
 /*                                                                            */
@@ -139,7 +197,7 @@ void handleClearStencilCommand(const GPUMemory &memory, const ClearStencilComman
  * @brief Gets a pointer to a pixel in an image, handling y-coordinate
  *        reversal if needed.
  *
- * @param img Reference to the image.
+ * @param image Reference to the image.
  * @param x X-coordinate of the pixel.
  * @param y Y-coordinate of the pixel.
  * @param height Height of the image.
@@ -147,7 +205,7 @@ void handleClearStencilCommand(const GPUMemory &memory, const ClearStencilComman
  *
  * @return `uint8_t*` Pointer to the specified pixel data.
  */
-uint8_t *getPixelMaybeReversed(const Image &img, uint32_t x, uint32_t y,
+uint8_t *getPixelMaybeReversed(const Image &image, uint32_t x, uint32_t y,
                                uint32_t height, bool yReversed);
 
 /**
@@ -168,6 +226,6 @@ uint8_t castNormalizedFloatToUnsignedInt8(float value);
  *
  * @return `float` The value of the specified color channel.
  */
-float pickChannel(const glm::vec4 &color, Image::Channel channel);
+float getColorChannel(const glm::vec4 &color, Image::Channel channel);
 
 /*** end of file gpu.hpp ***/
