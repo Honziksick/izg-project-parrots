@@ -228,4 +228,32 @@ uint8_t castNormalizedFloatToUnsignedInt8(float value);
  */
 float getColorChannel(const glm::vec4 &color, Image::Channel channel);
 
+/**
+ * @brief Gets the vertex index for use in vertex assembly.
+ *
+ * @details Retrieves the vertex index either from an index buffer (for indexed
+ *          drawing) or directly uses the vertex number (for non-indexed drawing).
+ *          For indexed drawing, handles different index formats (U8, U16, U32).
+ *
+ * @param memory Reference to GPU memory containing buffers and vertex arrays.
+ * @param vertexNumber Sequence number of the vertex in the drawing command.
+ *
+ * @return `uint32_t` The vertex index value (`gl_VertexID`) for the given vertex.
+ */
+uint32_t getVertexIndex(const GPUMemory &memory, uint32_t vertexNumber);
+
+/**
+ * @brief Assembles vertex data into an input vertex structure
+ *
+ * @details Collects all vertex attributes (position, normal, texcoords, etc.)
+ *          from vertex buffers in GPU memory according to the current vertex
+ *          array configuration, and fills the provided InVertex structure.
+ *
+ * @param memory Reference to GPU memory containing vertex data and attribute
+ *               configurations.
+ * @param inVertex Reference to the input vertex structure to be filled with
+ *                 assembled data.
+ */
+void assembleVertex(const GPUMemory &memory, InVertex &inVertex);
+
 /*** end of file gpu.hpp ***/
