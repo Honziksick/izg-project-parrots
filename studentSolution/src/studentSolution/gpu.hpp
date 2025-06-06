@@ -219,6 +219,18 @@ uint8_t *getPixelMaybeReversed(const Image &image, uint32_t x, uint32_t y,
 uint8_t castNormalizedFloatToUnsignedInt8(float value);
 
 /**
+ * @brief Converts an 8-bit unsigned integer to a normalized float value.
+ *
+ * @details Transforms an 8-bit unsigned integer (0-255) to a float value
+ *          in the normalized range [0.0, 1.0]. This is the inverse operation
+ *          of castNormalizedFloatToUnsignedInt8.
+ *
+ * @param value The 8-bit unsigned integer value to convert.
+ * @return `float` Normalized float value in range [0.0, 1.0].
+ */
+float castUnsignedInt8ToNormalizedFloat(uint8_t value);
+
+/**
  * @brief Extracts a specific color channel from a color vector.
  *
  * @param color RGBA color vector.
@@ -350,27 +362,10 @@ void interpolateFragmentAttributes(InFragment &inFragment, const Program &progra
                                    const OutVertex outVertices[3], float lambda0,
                                    float lambda1, float lambda2);
 
-/**
- * @brief Writes a color value to the framebuffer at specified coordinates.
- *
- * @details Converts the normalized color values (0.0-1.0) to 8-bit per channel
- *          format (0-255) and writes them to the color buffer. Handles y-coordinate
- *          reversal and respects the write blocking flag.
- *
- * @param frameBuffer The target framebuffer.
- * @param pixelX X-coordinate of the pixel.
- * @param pixelY Y-coordinate of the pixel.
- * @param color RGBA color value to write (normalized 0.0-1.0).
- * @param blockWrites If true, color writing is disabled.
- * @param yReversed If true, y-coordinates are flipped.
- */
-void writeColor(const Framebuffer &frameBuffer, uint32_t pixelX, uint32_t pixelY,
-                const glm::vec4 &color, bool blockWrites, bool yReversed);
-
 
 /******************************************************************************/
 /*                                                                            */
-/*                       EARLY PER FRAGMENT OPERATIONS                        */
+/*                          PER FRAGMENT OPERATIONS                           */
 /*                                                                            */
 /******************************************************************************/
 
@@ -394,6 +389,30 @@ void writeColor(const Framebuffer &frameBuffer, uint32_t pixelX, uint32_t pixelY
  */
 bool executeEarlyPerFragmentOperations(const GPUMemory &memory, const Framebuffer &frameBuffer,
                                        const InFragment &inFragment, bool isFacingFront);
+
+/**
+ * @brief Performs late fragment operations after fragment shader execution.
+ *
+ * @details Implements the fixed-function pipeline stage that processes fragments
+ *          after fragment shader execution. This stage occurs after the fragment
+ *          shader has run and early fragment operations have been completed.
+ *          The operations performed in this stage include:<br>
+ *          1. Fragment discard check (fragments marked for discard are rejected).<br>
+ *          2. Stencil buffer updates for fragments that passed all tests.<br>
+ *          3. Depth buffer updates with fragment depth values.<br>
+ *          4. Color buffer updates with alpha blending.
+ *
+ * @note The alpha blending formula used is:
+ *     $$outputColor = existingColor * (1 - alpha) + fragmentColor * alpha$$
+ *
+ * @param memory Reference to GPU memory containing graphics pipeline state.
+ * @param frameBuffer Target framebuffer where color/depth/stencil will be written.
+ * @param inFragment Input fragment data including position and interpolated attributes.
+ * @param outFragment Output from fragment shader containing color and discard flag.
+ * @param isFacingFront Boolean indicating if the fragment is from a front-facing primitive.
+ */
+void executeLatePerFragmentOperations(const GPUMemory &memory, const Framebuffer &frameBuffer,
+                                      const InFragment &inFragment, const OutFragment &outFragment, bool isFacingFront);
 
 /**
  * @brief Applies a stencil operation to modify a stencil buffer value.

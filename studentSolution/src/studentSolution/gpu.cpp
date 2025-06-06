@@ -7,7 +7,7 @@
  */
 
 #include <studentSolution/gpu.hpp>
-#include <algorithm>
+#include <algorithm>  // std::min, std::max, std::fabs
 
 
 /******************************************************************************/
@@ -238,7 +238,7 @@ static inline void handleUserCommand(const UserCommand &userCommand) {
     }
 } // handleUserCommand()
 
-// === TEST 12, 14-15, 17-29 ===
+// === TEST 12, 14-15, 17-37 ===
 static inline void handleDrawCommand(GPUMemory &memory, const DrawCommand &drawCommand) {
     // Get the drawing program from memory (as described in === TEST 14 ===)
     const Program &program = memory.programs[memory.activatedProgram];
@@ -340,6 +340,10 @@ static inline uint8_t *getPixelMaybeReversed(const Image &image, const uint32_t 
 static inline uint8_t castNormalizedFloatToUnsignedInt8(const float value) {
     return static_cast<uint8_t>(glm::clamp(value, 0.f, 1.f) * 255.f + 0.5f);
 } // castNormalizedFloatToUnsignedInt8()
+
+static inline float castUnsignedInt8ToNormalizedFloat(const uint8_t value) {
+    return static_cast<float>(value) / 255.0f;
+}
 
 // === TEST 8-10 ===
 static inline float getColorChannel(const glm::vec4 &color, const Image::Channel channel) {
@@ -586,11 +590,11 @@ static inline void rasterizeTriangleUsingPineda(const GPUMemory &memory, const P
 
                 // Determine the front face orientation
                 const bool isFrontCounterClockWise = memory.backfaceCulling.frontFaceIsCounterClockWise;
-                const bool isFront  = ((signedDoubleArea > 0) == isFrontCounterClockWise);
+                const bool isFront = ((signedDoubleArea > 0) == isFrontCounterClockWise);
 
                 // === TEST 30-33 ===
                 // If EFO returned false, we skip the fragment shader execution
-                if(!executeEarlyPerFragmentOperations(memory, frameBuffer, inFragment, isFront)){
+                if(!executeEarlyPerFragmentOperations(memory, frameBuffer, inFragment, isFront)) {
                     edge12 += edgeStepX_12;
                     edge20 += edgeStepX_20;
                     edge01 += edgeStepX_01;
@@ -604,8 +608,10 @@ static inline void rasterizeTriangleUsingPineda(const GPUMemory &memory, const P
 
                 // === TEST 22-24 ===
                 // Write the color to the framebuffer
-                writeColor(frameBuffer, x, y, outFragment.gl_FragColor, memory.blockWrites.color, frameBuffer.yReversed);
-            } // if(edge12 >= 0 && edge20 >= 0 && edge01 >= 0)
+                executeLatePerFragmentOperations(memory, frameBuffer,
+                                                 inFragment, outFragment,
+                                                 isFront);
+            } // if(shouldDraw)
 
             // Update the horizontal part of edge functions for the next pixel in the row
             edge12 += edgeStepX_12;
@@ -736,27 +742,10 @@ static inline void interpolateFragmentAttributes(InFragment &inFragment, const P
     } // for(iAttribute)
 } // interpolateFragmentAttributes()
 
-// === TEST 22-24 ===
-static inline void writeColor(const Framebuffer &frameBuffer, const uint32_t pixelX, const uint32_t pixelY,
-                              const glm::vec4 &color, const bool blockWrites, const bool yReversed) {
-    // Skip writing if color buffer is not available or color writing is blocked
-    if(!frameBuffer.color.data || blockWrites) {
-        return;
-    }
-
-    // Get pointer to the pixel at coordinates [x,y], handling y-reversed if needed
-    uint8_t *pixelPointer = getPixelMaybeReversed(frameBuffer.color, pixelX, pixelY, frameBuffer.height, yReversed);
-
-    // Write R, G, B, A color components converted from normalized [0,1] to byte [0,255] values
-    pixelPointer[Image::RED] = castNormalizedFloatToUnsignedInt8(color.r);    // RED
-    pixelPointer[Image::GREEN] = castNormalizedFloatToUnsignedInt8(color.g);  // GREEN
-    pixelPointer[Image::BLUE] = castNormalizedFloatToUnsignedInt8(color.b);   // BLUE
-    pixelPointer[Image::ALPHA] = castNormalizedFloatToUnsignedInt8(color.a);  // ALPHA
-} // writeColor()
 
 /******************************************************************************/
 /*                                                                            */
-/*                       EARLY PER FRAGMENT OPERATIONS                        */
+/*                          PER FRAGMENT OPERATIONS                           */
 /*                                                                            */
 /******************************************************************************/
 
@@ -829,8 +818,8 @@ static inline bool executeEarlyPerFragmentOperations(const GPUMemory &memory, co
         if(inFragment.gl_FragCoord.z >= *pDepthPixel) {
             // Is stencil test active?           // Block stecnil writes?       // Has stencil buffer?
             if(memory.stencilSettings.enabled && !memory.blockWrites.stencil && frameBuffer.stencil.data) {
-                uint8_t *pStencilPixel = getPixelMaybeReversed(frameBuffer.stencil,static_cast<uint32_t>(inFragment.gl_FragCoord.x),
-                        static_cast<uint32_t>(inFragment.gl_FragCoord.y),frameBuffer.height, frameBuffer.yReversed);
+                uint8_t *pStencilPixel = getPixelMaybeReversed(frameBuffer.stencil, static_cast<uint32_t>(inFragment.gl_FragCoord.x),
+                                                               static_cast<uint32_t>(inFragment.gl_FragCoord.y), frameBuffer.height, frameBuffer.yReversed);
 
                 executeStencilOperation(*pStencilPixel, dpfail, memory.stencilSettings.refValue); // dpfail
             }
@@ -839,21 +828,101 @@ static inline bool executeEarlyPerFragmentOperations(const GPUMemory &memory, co
         }
 
         // dppass
-        if(!memory.blockWrites.depth){
+        if(!memory.blockWrites.depth) {
             *pDepthPixel = inFragment.gl_FragCoord.z;
         }
 
-        if(memory.stencilSettings.enabled && !memory.blockWrites.stencil &&
-            frameBuffer.stencil.data) {
+        // Is stencil test active?           // BlockStencil Writes         // Has stencil buffer?
+        if(memory.stencilSettings.enabled && !memory.blockWrites.stencil && frameBuffer.stencil.data) {
             uint8_t *pStencilPixel = getPixelMaybeReversed(frameBuffer.stencil, static_cast<uint32_t>(inFragment.gl_FragCoord.x),
                                                            static_cast<uint32_t>(inFragment.gl_FragCoord.y), frameBuffer.height,
                                                            frameBuffer.yReversed);
+
             executeStencilOperation(*pStencilPixel, dppass, memory.stencilSettings.refValue);
         }
     } // if(depthTest)
 
     return true; // fragment continues processing (goes to fragment shader)
 } // executeEarlyPerFragmentOperations()
+
+static inline void executeLatePerFragmentOperations(const GPUMemory &memory, const Framebuffer &frameBuffer,
+                                                    const InFragment &inFragment, const OutFragment &outFragment,
+                                                    const bool isFacingFront) {
+    // === TEST 34 ===
+    // Discarding
+    if(outFragment.discard) {
+        return;
+    }
+
+    // === TEST 35 ===
+    // Stencil writes
+    // Is stencil test active?           // BlockStencil Writes         // Has stencil buffer?
+    if(memory.stencilSettings.enabled && !memory.blockWrites.stencil && frameBuffer.stencil.data) {
+        // Check if the fragment is facing front or back
+        const auto &[sfail, dpfail, dppass] = isFacingFront
+                                                  ? memory.stencilSettings.frontOps
+                                                  : memory.stencilSettings.backOps;
+
+        // Get pointer to the stencil value at the fragment's position
+        uint8_t *pStencilPixel = getPixelMaybeReversed(frameBuffer.stencil, static_cast<uint32_t>(inFragment.gl_FragCoord.x),
+                                                       static_cast<uint32_t>(inFragment.gl_FragCoord.y), frameBuffer.height,
+                                                       frameBuffer.yReversed);
+
+        executeStencilOperation(*pStencilPixel, dppass, memory.stencilSettings.refValue);
+    } // dppass
+
+    // === TEST 36 ===
+    // Depth writes
+    // Block depth writes?          // Has depth buffer?
+    if(!memory.blockWrites.depth && frameBuffer.depth.data) {
+        // Get pointer to the depth value at the fragment's position
+        const auto pDepthPixel = reinterpret_cast<float*>(getPixelMaybeReversed(frameBuffer.depth, static_cast<uint32_t>(inFragment.gl_FragCoord.x),
+                                                                                static_cast<uint32_t>(inFragment.gl_FragCoord.y), frameBuffer.height,
+                                                                                frameBuffer.yReversed));
+        // Update the depth value in the framebuffer
+        *pDepthPixel = inFragment.gl_FragCoord.z;
+    } // depth write
+
+    // === TEST 37 ===
+    // Color writes
+    // Block color writes?          // Has color buffer?
+    if(!memory.blockWrites.color && frameBuffer.color.data) {
+        uint8_t *pColorPixel = getPixelMaybeReversed(frameBuffer.color, static_cast<uint32_t>(inFragment.gl_FragCoord.x),
+                                                     static_cast<uint32_t>(inFragment.gl_FragCoord.y), frameBuffer.height,
+                                                     frameBuffer.yReversed);
+
+        // We need to convert the color from byte [0,255] to normalized float [0,1]
+        glm::vec4 existingColor;
+        existingColor.r = castUnsignedInt8ToNormalizedFloat(pColorPixel[Image::RED]);
+        existingColor.g = castUnsignedInt8ToNormalizedFloat(pColorPixel[Image::GREEN]);
+        existingColor.b = castUnsignedInt8ToNormalizedFloat(pColorPixel[Image::BLUE]);
+
+        // Support both RGBA and RGB formats
+        const bool hasAlphaChannel = (frameBuffer.color.bytesPerPixel == 4);
+        existingColor.a = hasAlphaChannel
+                              ? castUnsignedInt8ToNormalizedFloat(pColorPixel[Image::ALPHA])
+                              : 0.f;
+
+        // New fragment color
+        const glm::vec4 fragmentColor = outFragment.gl_FragColor;
+        const float alpha = glm::clamp(fragmentColor.a, 0.f, 1.f);
+
+        // Alpha Blending: colorBufferRGB = colorBufferRGB * (1 − alpha) + gl_FragColorRGB * alpha
+        const auto blendedR = existingColor.r * (1.f - alpha) + fragmentColor.r * alpha;
+        const auto blendedG = existingColor.g * (1.f - alpha) + fragmentColor.g * alpha;
+        const auto blendedB = existingColor.b * (1.f - alpha) + fragmentColor.b * alpha;
+        const auto blendedA = existingColor.a * (1.f - alpha) + alpha;
+
+        // We revert the color back to byte [0,255] and write it to the framebuffer
+        pColorPixel[Image::RED] = castNormalizedFloatToUnsignedInt8(blendedR);
+        pColorPixel[Image::GREEN] = castNormalizedFloatToUnsignedInt8(blendedG);
+        pColorPixel[Image::BLUE] = castNormalizedFloatToUnsignedInt8(blendedB);
+
+        if(hasAlphaChannel) {
+            pColorPixel[Image::ALPHA] = castNormalizedFloatToUnsignedInt8(blendedA);
+        }
+    } // color write
+} // executeLatePerFragmentOperations()
 
 static inline void executeStencilOperation(uint8_t &stencilValue, const StencilOp stencilOperation, const uint32_t stencilValueReference) {
     switch(stencilOperation) {
