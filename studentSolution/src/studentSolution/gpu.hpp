@@ -266,6 +266,32 @@ void assembleVertex(const GPUMemory &memory, InVertex &inVertex);
 
 /******************************************************************************/
 /*                                                                            */
+/*                               RASTERIZATION                                */
+/*                                                                            */
+/******************************************************************************/
+
+/**
+ * @brief Rasterizes a triangle using the Pineda algorithm.
+ *
+ * @details Converts a triangle into fragments (potential pixels) using edge functions.
+ *          For each pixel within the triangle's bounding box, determines if it's inside
+ *          the triangle, interpolates vertex attributes, and invokes the fragment shader.
+ *
+ * @param memory GPU memory containing all resources.
+ * @param program Active shader program with vertex and fragment shaders.
+ * @param frameBuffer Target framebuffer for rendering output.
+ * @param shaderInterface Interface for passing uniform data to shaders.
+ * @param outTriangle Array of three output vertices from the vertex shader.
+ * @param vertices Array of three screen-space vertex positions after viewport transform.
+ * @param oneOverW Array of 1/w values for perspective-correct interpolation.
+ */
+void rasterizeTriangleUsingPineda(const GPUMemory &memory, const Program &program,
+                                  const Framebuffer &frameBuffer, const ShaderInterface &shaderInterface,
+                                  const OutVertex outTriangle[3], const glm::vec3 vertices[3], const float oneOverW[3]);
+
+
+/******************************************************************************/
+/*                                                                            */
 /*                           RASTERIZATION HELPERS                            */
 /*                                                                            */
 /******************************************************************************/
@@ -297,38 +323,21 @@ glm::vec3 clipSpacePositionToScreenSpace(const glm::vec4 &clipSpacePosition, uin
  *          occluded by front-facing geometry.
  *
  * @param triangleVertex Array of three screen-space vertices forming the triangle.
- * @param backfaceCulling Configuration specifying culling mode (off, cull front, cull back).
+ * @param backfaceCulling Configuration specifying culling mode (off, cull front,
+ *                        cull back).
  *
  * @return `true` if the triangle should be culled (skipped), `false` otherwise.
  */
 bool backFaceCulling(const glm::vec3 triangleVertex[3], const BackfaceCulling &backfaceCulling);
 
 /**
- * @brief Rasterizes a triangle using the Pineda algorithm.
- *
- * @details Converts a triangle into fragments (potential pixels) using edge functions.
- *          For each pixel within the triangle's bounding box, determines if it's inside
- *          the triangle, interpolates vertex attributes, and invokes the fragment shader.
- *
- * @param memory GPU memory containing all resources.
- * @param program Active shader program with vertex and fragment shaders.
- * @param frameBuffer Target framebuffer for rendering output.
- * @param shaderInterface Interface for passing uniform data to shaders.
- * @param outTriangle Array of three output vertices from the vertex shader.
- * @param vertices Array of three screen-space vertex positions after viewport transform.
- * @param oneOverW Array of 1/w values for perspective-correct interpolation.
- */
-void rasterizeTriangleUsingPineda(const GPUMemory &memory, const Program &program,
-                                  const Framebuffer &frameBuffer, const ShaderInterface &shaderInterface,
-                                  const OutVertex outTriangle[3], const glm::vec3 vertices[3], const float oneOverW[3]);
-
-/**
  * @brief Interpolates vertex attributes for a fragment using barycentric coordinates.
  *
- * @details Computes attribute values for a fragment by interpolating between the three
- *          vertices of the triangle. Handles different attribute types according to the
- *          program configuration. Integer attributes use flat shading (values from the
- *          provoking vertex), while floating-point attributes are interpolated.
+ * @details Computes attribute values for a fragment by interpolating between the
+ *          three vertices of the triangle. Handles different attribute types
+ *          according to the program configuration. Integer attributes use flat
+ *          shading (values from the provoking vertex), while floating-point
+ *          attributes are interpolated.
  *
  * @param inFragment Reference to the fragment where interpolated attributes will be stored.
  * @param program The shader program containing vs2fs configuration.
@@ -357,5 +366,47 @@ void interpolateFragmentAttributes(InFragment &inFragment, const Program &progra
  */
 void writeColor(const Framebuffer &frameBuffer, uint32_t pixelX, uint32_t pixelY,
                 const glm::vec4 &color, bool blockWrites, bool yReversed);
+
+
+/******************************************************************************/
+/*                                                                            */
+/*                       EARLY PER FRAGMENT OPERATIONS                        */
+/*                                                                            */
+/******************************************************************************/
+
+/**
+ * @brief Performs early fragment tests (stencil and depth) before fragment
+ *        shader execution.
+ *
+ * @details Implements the fixed-function pipeline stage that tests fragments
+ *          against depth and stencil buffers. These tests can discard fragments
+ *          early to avoid unnecessary fragment shader executions. Takes into
+ *          account whether the fragment comes from a front-facing or back-facing
+ *          primitive to apply the appropriate stencil operations.
+ *
+ * @param memory Reference to GPU memory containing stencil test settings.
+ * @param frameBuffer Target framebuffer with depth and stencil buffers.
+ * @param inFragment Fragment to be tested with position and depth information.
+ * @param isFacingFront Boolean indicating if the fragment is from a front-facing primitive.
+ *
+ * @return `true` if the fragment passes all tests and should continue processing,
+ *         `false` if the fragment should be discarded.
+ */
+bool executeEarlyPerFragmentOperations(const GPUMemory &memory, const Framebuffer &frameBuffer,
+                                       const InFragment &inFragment, bool isFacingFront);
+
+/**
+ * @brief Applies a stencil operation to modify a stencil buffer value.
+ *
+ * @details Implements the different stencil operations that can be applied
+ *          when a stencil or depth test yields specific results. Operations
+ *          include keeping the value, setting to zero, replacing, incrementing,
+ *          decrementing, or inverting the stencil value.
+ *
+ * @param stencilValue Reference to the stencil buffer value to be modified.
+ * @param stencilOperation The operation to perform (KEEP, ZERO, REPLACE, etc.).
+ * @param stencilValueReference Reference value used for the REPLACE operation (default: 0).
+ */
+void executeStencilOperation(uint8_t &stencilValue, StencilOp stencilOperation, uint32_t stencilValueReference = 0);
 
 /*** end of file gpu.hpp ***/

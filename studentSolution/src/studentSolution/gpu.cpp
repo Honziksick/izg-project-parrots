@@ -455,53 +455,9 @@ static inline void assembleVertex(const GPUMemory &memory, InVertex &inVertex) {
 
 /******************************************************************************/
 /*                                                                            */
-/*                           RASTERIZATION HELPERS                            */
+/*                               RASTERIZATION                                */
 /*                                                                            */
 /******************************************************************************/
-
-// === TEST 25 ===
-static inline glm::vec3 clipSpacePositionToScreenSpace(const glm::vec4 &clipSpacePosition, const uint32_t width,
-                                                       const uint32_t height, float &oneOverW) {
-    // Calculate inverse of w-component (1/w) for perspective division
-    oneOverW = 1.f / clipSpacePosition.w;
-
-    // Perform perspective division to convert from clip space to normalized device coordinates (NDC)
-    const glm::vec3 normalizedDeviceCoordinates = glm::vec3(clipSpacePosition) * oneOverW;
-
-    // Transform NDC coordinates (range [-1,1]) to screen space coordinates (range [0,width/height])
-    glm::vec3 screenSpacePosition;
-    screenSpacePosition.x = (normalizedDeviceCoordinates.x * 0.5f + 0.5f) * static_cast<float>(width);
-    screenSpacePosition.y = (normalizedDeviceCoordinates.y * 0.5f + 0.5f) * static_cast<float>(height);
-    screenSpacePosition.z = normalizedDeviceCoordinates.z;
-
-    return screenSpacePosition;
-} // clipSpacePositionToScreenSpace()
-
-// === TEST 26 ===
-static inline bool backFaceCulling(const glm::vec3 triangleVertex[3], const BackfaceCulling &backfaceCulling) {
-    // Skip culling if backface culling is disabled
-    if(!backfaceCulling.enabled) {
-        return false;
-    }
-
-    // Calculate the first edge vector (from vertex 0 to vertex 1)
-    const float edge1_x = triangleVertex[1].x - triangleVertex[0].x;
-    const float edge1_y = triangleVertex[1].y - triangleVertex[0].y;
-
-    // Calculate the second edge vector (from vertex 0 to vertex 2)
-    const float edge2_x = triangleVertex[2].x - triangleVertex[0].x;
-    const float edge2_y = triangleVertex[2].y - triangleVertex[0].y;
-
-    // Compute twice the signed area using 2D cross product: (edge1 × edge2)
-    // Positive area indicates counter-clockwise winding, clockwise winding is negative.
-    const float signedArea = (edge1_x * edge2_y) - (edge1_y * edge2_x);
-
-    // Determine triangle orientation (true for counter-clockwise)
-    const bool isCounterClockwise = (signedArea > 0.f);
-
-    // Determine if the triangle should be culled
-    return (isCounterClockwise != backfaceCulling.frontFaceIsCounterClockWise);
-} // backFaceCulling()
 
 // === TEST 22-24, 27-29 ===
 static inline void rasterizeTriangleUsingPineda(const GPUMemory &memory, const Program &program,
@@ -579,6 +535,11 @@ static inline void rasterizeTriangleUsingPineda(const GPUMemory &memory, const P
     float edge20Row = edgeA20Normal * rowX + edgeB20Normal * rowY + edgeC20Normal;
     float edge01Row = edgeA01Normal * rowX + edgeB01Normal * rowY + edgeC01Normal;
 
+    // Determine if we include the top-left pixel in the bounding box
+    const bool edge01TopLeft = (edgeB01Normal > 0) || (edgeB01Normal == 0 && edgeA01Normal > 0);
+    const bool edge12TopLeft = (edgeB12Normal > 0) || (edgeB12Normal == 0 && edgeA12Normal > 0);
+    const bool edge20TopLeft = (edgeB20Normal > 0) || (edgeB20Normal == 0 && edgeA20Normal > 0);
+
     // === TEST 22-24 ==
     // Rasterization loop over the bounding box of the triangle using Pineda's edge functions
     for(int y = minY; y <= maxY; y++) {
@@ -589,7 +550,9 @@ static inline void rasterizeTriangleUsingPineda(const GPUMemory &memory, const P
 
         for(int x = minX; x <= maxX; x++) {
             // Test if the point lies inside the triangle
-            if(edge12 >= 0 && edge20 >= 0 && edge01 >= 0) {
+            if((edge12 > 0 || (edge12 == 0 && edge12TopLeft)) &&
+                (edge20 > 0 || (edge20 == 0 && edge20TopLeft)) &&
+                (edge01 > 0 || (edge01 == 0 && edge01TopLeft))) {
                 // Barycentric coordinates
                 const float lambda0 = edge12 / areaAbs;
                 const float lambda1 = edge20 / areaAbs;
@@ -621,6 +584,19 @@ static inline void rasterizeTriangleUsingPineda(const GPUMemory &memory, const P
                 // Interpolation of attributes from vertex shader
                 interpolateFragmentAttributes(inFragment, program, outTriangle, l0, l1, l2);
 
+                // Determine the front face orientation
+                const bool isFrontCounterClockWise = memory.backfaceCulling.frontFaceIsCounterClockWise;
+                const bool isFront  = ((signedDoubleArea > 0) == isFrontCounterClockWise);
+
+                // === TEST 30-33 ===
+                // If EFO returned false, we skip the fragment shader execution
+                if(!executeEarlyPerFragmentOperations(memory, frameBuffer, inFragment, isFront)){
+                    edge12 += edgeStepX_12;
+                    edge20 += edgeStepX_20;
+                    edge01 += edgeStepX_01;
+                    continue;
+                }
+
                 // === TEST 22 ===
                 // Call the fragment shader
                 OutFragment outFragment;
@@ -643,6 +619,57 @@ static inline void rasterizeTriangleUsingPineda(const GPUMemory &memory, const P
         edge01Row += edgeStepY_01;
     } // for(y)
 } // rasterizeTriangleUsingPineda()
+
+/******************************************************************************/
+/*                                                                            */
+/*                           RASTERIZATION HELPERS                            */
+/*                                                                            */
+/******************************************************************************/
+
+// === TEST 25 ===
+static inline glm::vec3 clipSpacePositionToScreenSpace(const glm::vec4 &clipSpacePosition, const uint32_t width,
+                                                       const uint32_t height, float &oneOverW) {
+    // Calculate inverse of w-component (1/w) for perspective division
+    oneOverW = 1.f / clipSpacePosition.w;
+
+    // Perform perspective division to convert from clip space to normalized device coordinates (NDC)
+    const glm::vec3 normalizedDeviceCoordinates = glm::vec3(clipSpacePosition) * oneOverW;
+
+    // Transform NDC coordinates (range [-1,1]) to screen space coordinates (range [0,width/height])
+    glm::vec3 screenSpacePosition;
+    screenSpacePosition.x = (normalizedDeviceCoordinates.x * 0.5f + 0.5f) * static_cast<float>(width);
+    screenSpacePosition.y = (normalizedDeviceCoordinates.y * 0.5f + 0.5f) * static_cast<float>(height);
+    screenSpacePosition.z = normalizedDeviceCoordinates.z;
+
+    return screenSpacePosition;
+} // clipSpacePositionToScreenSpace()
+
+// === TEST 26 ===
+static inline bool backFaceCulling(const glm::vec3 triangleVertex[3], const BackfaceCulling &backfaceCulling) {
+    // Skip culling if backface culling is disabled
+    if(!backfaceCulling.enabled) {
+        return false;
+    }
+
+    // Calculate the first edge vector (from vertex 0 to vertex 1)
+    const float edge1_x = triangleVertex[1].x - triangleVertex[0].x;
+    const float edge1_y = triangleVertex[1].y - triangleVertex[0].y;
+
+    // Calculate the second edge vector (from vertex 0 to vertex 2)
+    const float edge2_x = triangleVertex[2].x - triangleVertex[0].x;
+    const float edge2_y = triangleVertex[2].y - triangleVertex[0].y;
+
+    // Compute twice the signed area using 2D cross product: (edge1 × edge2)
+    // Positive area indicates counter-clockwise winding, clockwise winding is negative.
+    const float signedArea = (edge1_x * edge2_y) - (edge1_y * edge2_x);
+
+    // Determine triangle orientation (true for counter-clockwise)
+    const bool isCounterClockwise = (signedArea > 0.f);
+
+    // Determine if the triangle should be culled
+    return (isCounterClockwise != backfaceCulling.frontFaceIsCounterClockWise);
+} // backFaceCulling()
+
 
 // === TEST 28-29 ===
 static inline void interpolateFragmentAttributes(InFragment &inFragment, const Program &program, const OutVertex outVertices[3],
@@ -721,10 +748,158 @@ static inline void writeColor(const Framebuffer &frameBuffer, const uint32_t pix
     uint8_t *pixelPointer = getPixelMaybeReversed(frameBuffer.color, pixelX, pixelY, frameBuffer.height, yReversed);
 
     // Write R, G, B, A color components converted from normalized [0,1] to byte [0,255] values
-    pixelPointer[0] = castNormalizedFloatToUnsignedInt8(color.r);  // RED
-    pixelPointer[1] = castNormalizedFloatToUnsignedInt8(color.g);  // GREEN
-    pixelPointer[2] = castNormalizedFloatToUnsignedInt8(color.b);  // BLUE
-    pixelPointer[3] = castNormalizedFloatToUnsignedInt8(color.a);  // ALPHA
+    pixelPointer[Image::RED] = castNormalizedFloatToUnsignedInt8(color.r);    // RED
+    pixelPointer[Image::GREEN] = castNormalizedFloatToUnsignedInt8(color.g);  // GREEN
+    pixelPointer[Image::BLUE] = castNormalizedFloatToUnsignedInt8(color.b);   // BLUE
+    pixelPointer[Image::ALPHA] = castNormalizedFloatToUnsignedInt8(color.a);  // ALPHA
 } // writeColor()
+
+/******************************************************************************/
+/*                                                                            */
+/*                       EARLY PER FRAGMENT OPERATIONS                        */
+/*                                                                            */
+/******************************************************************************/
+
+static inline bool executeEarlyPerFragmentOperations(const GPUMemory &memory, const Framebuffer &frameBuffer,
+                                                     const InFragment &inFragment, const bool isFacingFront) {
+    // Check if the fragment is facing front or back
+    const auto &[sfail, dpfail, dppass] = isFacingFront
+                                              ? memory.stencilSettings.frontOps
+                                              : memory.stencilSettings.backOps;
+
+    // === TEST 30-31 ===
+    // Is stencil test active?           // Has stencil buffer?
+    if(memory.stencilSettings.enabled && frameBuffer.stencil.data) {
+        // Get pointer to the stencil value at the fragment's position
+        uint8_t *pStencilPixel = getPixelMaybeReversed(frameBuffer.stencil, static_cast<uint32_t>(inFragment.gl_FragCoord.x),
+                                                       static_cast<uint32_t>(inFragment.gl_FragCoord.y), frameBuffer.height,
+                                                       frameBuffer.yReversed);
+
+        // Read the current stencil value
+        bool pass{false};
+
+        // Stencil Test
+        switch(memory.stencilSettings.func) {
+            case StencilFunc::NEVER:
+                pass = false; // sfail
+                break;
+            case StencilFunc::LESS:
+                pass = *pStencilPixel < memory.stencilSettings.refValue;
+                break;
+            case StencilFunc::LEQUAL:
+                pass = *pStencilPixel <= memory.stencilSettings.refValue;
+                break;
+            case StencilFunc::GREATER:
+                pass = *pStencilPixel > memory.stencilSettings.refValue;
+                break;
+            case StencilFunc::GEQUAL:
+                pass = *pStencilPixel >= memory.stencilSettings.refValue;
+                break;
+            case StencilFunc::EQUAL:
+                pass = *pStencilPixel == memory.stencilSettings.refValue;
+                break;
+            case StencilFunc::NOTEQUAL:
+                pass = *pStencilPixel != memory.stencilSettings.refValue;
+                break;
+            case StencilFunc::ALWAYS:
+                pass = true; // spass
+                break;
+        } // switch(memory.stencilSettings.func)
+
+        // Handle stencil test failure (sfail case)
+        if(!pass) {
+            // Block stencil writes?
+            if(!memory.blockWrites.stencil) {
+                executeStencilOperation(*pStencilPixel, sfail, memory.stencilSettings.refValue); // sfail
+            }
+
+            return false; // fragment processing is stopped
+        }
+    } // if(stencilTest)
+
+    // === TEST 32-33 ===
+    // Has depth buffer?
+    if(frameBuffer.depth.data) {
+        // Get pointer to the depth value at the fragment's position
+        const auto pDepthPixel = reinterpret_cast<float*>(getPixelMaybeReversed(frameBuffer.depth, static_cast<uint32_t>(inFragment.gl_FragCoord.x),
+                                                                                static_cast<uint32_t>(inFragment.gl_FragCoord.y), frameBuffer.height,
+                                                                                frameBuffer.yReversed));
+
+        // Perform depth test (z >= buffer depth means fragment is behind what's already there)
+        if(inFragment.gl_FragCoord.z >= *pDepthPixel) {
+            // Is stencil test active?           // Block stecnil writes?       // Has stencil buffer?
+            if(memory.stencilSettings.enabled && !memory.blockWrites.stencil && frameBuffer.stencil.data) {
+                uint8_t *pStencilPixel = getPixelMaybeReversed(frameBuffer.stencil,static_cast<uint32_t>(inFragment.gl_FragCoord.x),
+                        static_cast<uint32_t>(inFragment.gl_FragCoord.y),frameBuffer.height, frameBuffer.yReversed);
+
+                executeStencilOperation(*pStencilPixel, dpfail, memory.stencilSettings.refValue); // dpfail
+            }
+
+            return false; // fragment processing is stopped
+        }
+
+        // dppass
+        if(!memory.blockWrites.depth){
+            *pDepthPixel = inFragment.gl_FragCoord.z;
+        }
+
+        if(memory.stencilSettings.enabled && !memory.blockWrites.stencil &&
+            frameBuffer.stencil.data) {
+            uint8_t *pStencilPixel = getPixelMaybeReversed(frameBuffer.stencil, static_cast<uint32_t>(inFragment.gl_FragCoord.x),
+                                                           static_cast<uint32_t>(inFragment.gl_FragCoord.y), frameBuffer.height,
+                                                           frameBuffer.yReversed);
+            executeStencilOperation(*pStencilPixel, dppass, memory.stencilSettings.refValue);
+        }
+    } // if(depthTest)
+
+    return true; // fragment continues processing (goes to fragment shader)
+} // executeEarlyPerFragmentOperations()
+
+static inline void executeStencilOperation(uint8_t &stencilValue, const StencilOp stencilOperation, const uint32_t stencilValueReference) {
+    switch(stencilOperation) {
+        case StencilOp::KEEP:
+            // Keep the current stencil value unchanged
+            break;
+
+        case StencilOp::ZERO:
+            // Set stencil value to zero
+            stencilValue = 0;
+            break;
+
+        case StencilOp::REPLACE:
+            // Replace stencil value with the reference value
+            stencilValue = static_cast<uint8_t>(stencilValueReference);
+            break;
+
+        case StencilOp::INCR:
+            // Increment stencil value with saturation (clamped to 255)
+            if(stencilValue < 255) {
+                stencilValue++;
+            }
+            break;
+
+        case StencilOp::INCR_WRAP:
+            // Increment stencil value with wrapping (255+1 -> 0)
+            stencilValue = static_cast<uint8_t>(stencilValue + 1);
+            break;
+
+        case StencilOp::DECR:
+            // Decrement stencil value with saturation (clamped to 0)
+            if(stencilValue > 0) {
+                stencilValue--;
+            }
+            break;
+
+        case StencilOp::DECR_WRAP:
+            // Decrement stencil value with wrapping (0-1 -> 255)
+            stencilValue = static_cast<uint8_t>(stencilValue - 1);
+            break;
+
+        case StencilOp::INVERT:
+            // Bitwise inversion of the stencil value
+            stencilValue = ~stencilValue;
+            break;
+    } // switch(stencilOperation)
+} // executeStencilOperation()
 
 /*** end of file gpu.cpp ***/
