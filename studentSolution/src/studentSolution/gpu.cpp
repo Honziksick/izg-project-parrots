@@ -7,6 +7,7 @@
  */
 
 #include <studentSolution/gpu.hpp>
+#include <algorithm>
 
 
 /******************************************************************************/
@@ -237,38 +238,69 @@ static inline void handleUserCommand(const UserCommand &userCommand) {
     }
 } // handleUserCommand()
 
-// === TEST 12, 14-15, 17-21 ===
+// === TEST 12, 14-15, 17-29 ===
 static inline void handleDrawCommand(GPUMemory &memory, const DrawCommand &drawCommand) {
-    // === TEST 17 ===
-    // Prepare constant input of shader interface (07 Vertex Processor image)
-    ShaderInterface shaderInterface;
-    shaderInterface.gl_DrawID = memory.gl_DrawID;  // === TEST 15 ===
-    shaderInterface.uniforms = memory.uniforms;
-    shaderInterface.textures = memory.textures;
-
     // Get the drawing program from memory (as described in === TEST 14 ===)
     const Program &program = memory.programs[memory.activatedProgram];
 
-    // === TEST 14 ===
-    // Process each I/O vertex in the draw command
-    for(uint32_t iVertex = 0; iVertex < drawCommand.nofVertices; ++iVertex) {
-        InVertex inVertex;
-        OutVertex outVertex;
+    // === TEST 12 ==
+    // We skip the drawing and only increment the draw ID if the program is not set
+    if(!program.vertexShader) {
+        memory.gl_DrawID++;
+        return;
+    }
 
-        // === TEST 18 ===
-        // getVertexIndex() function supports both indexed and non-indexed drawing
-        inVertex.gl_VertexID = getVertexIndex(memory, iVertex);
+    // Prepare constant input of shader interface (07 Vertex Processor image)
+    ShaderInterface shaderInterface;
+    shaderInterface.gl_DrawID = memory.gl_DrawID;  // === TEST 15 ===
+    shaderInterface.uniforms = memory.uniforms;    // === TEST 17 ===
+    shaderInterface.textures = memory.textures;    // === TEST 17 ===
 
-        // === TEST 19-21 ===
-        // Assemble vertex from buffers using Vertex Assembly unit
-        assembleVertex(memory, inVertex);
+    // Get the currently activated framebuffer from memory
+    const auto &frameBuffer = memory.framebuffers[memory.activatedFramebuffer];
+    const uint32_t width = frameBuffer.width;
+    const uint32_t height = frameBuffer.height;
+
+    for(uint32_t iTriangleStart = 0; iTriangleStart < drawCommand.nofVertices; iTriangleStart += 3) {
+        OutVertex outTriangle[3];
+        glm::vec3 screenVertex[3];
+        float oneOverW[3];
 
         // === TEST 14 ===
-        // Run vertex shader for each vertex
-        if(program.vertexShader) {
-            program.vertexShader(outVertex, inVertex, shaderInterface);
+        // Process each I/O vertex in the draw command
+        for(int iVertex = 0; iVertex < 3; iVertex++) {
+            InVertex inVertex;
+
+            // === TEST 18 ===
+            // getVertexIndex() function supports both indexed and non-indexed drawing
+            inVertex.gl_VertexID = getVertexIndex(memory, iTriangleStart + iVertex);
+
+            // === TEST 19-21 ===
+            // Assemble vertex from buffers using Vertex Assembly unit
+            assembleVertex(memory, inVertex);
+
+            // === TEST 14 ===
+            // Run vertex shader for each vertex
+            program.vertexShader(outTriangle[iVertex], inVertex, shaderInterface);
+
+            screenVertex[iVertex] = clipSpacePositionToScreenSpace(outTriangle[iVertex].gl_Position,
+                                                                   width, height, oneOverW[iVertex]);
+        } // for(iVertex)
+
+        // === TEST 26 ===
+        if(backFaceCulling(screenVertex, memory.backfaceCulling)) {
+            continue;
         }
-    }
+
+        // All these steps are handled by the rasterizeTriangleUsingPineda function
+        rasterizeTriangleUsingPineda(memory,            // GPU state
+                                     program,           // active program
+                                     frameBuffer,       // active framebuffer
+                                     shaderInterface,   // constants for fragment shader
+                                     outTriangle,       // vertex shader outputs
+                                     screenVertex,      // vertices in screen-space
+                                     oneOverW);         // 1/w for perspective correction
+    } // for(iTriangle)
 
     // === TEST 12 ===
     memory.gl_DrawID++;  // increment the draw ID for each draw command
@@ -325,6 +357,13 @@ static inline float getColorChannel(const glm::vec4 &color, const Image::Channel
     } // switch(channel)
 } // pickChannel()
 
+
+/******************************************************************************/
+/*                                                                            */
+/*                           VERTEX SHADER HELPERS                            */
+/*                                                                            */
+/******************************************************************************/
+
 // === TEST 18 ===
 static inline uint32_t getVertexIndex(const GPUMemory &memory, const uint32_t vertexNumber) {
     const VertexArray &vertexArray = memory.vertexArrays[memory.activatedVertexArray];
@@ -352,7 +391,7 @@ static inline uint32_t getVertexIndex(const GPUMemory &memory, const uint32_t ve
         }
     } // switch(vertexArray.indexType)
 
-    // For non-indexed drawing approache (we return vertexNumber as is)
+    // For non-indexed drawing approache (vertexNumber as is)
     return vertexNumber;
 } // getVertexIndex()
 
@@ -412,5 +451,280 @@ static inline void assembleVertex(const GPUMemory &memory, InVertex &inVertex) {
         } // if(attributeType != AttribType::EMPTY && attributeBufferID >= 0)
     } // for(iAttribute)
 } // assembleVertex()
+
+
+/******************************************************************************/
+/*                                                                            */
+/*                           RASTERIZATION HELPERS                            */
+/*                                                                            */
+/******************************************************************************/
+
+// === TEST 25 ===
+static inline glm::vec3 clipSpacePositionToScreenSpace(const glm::vec4 &clipSpacePosition, const uint32_t width,
+                                                       const uint32_t height, float &oneOverW) {
+    // Calculate inverse of w-component (1/w) for perspective division
+    oneOverW = 1.f / clipSpacePosition.w;
+
+    // Perform perspective division to convert from clip space to normalized device coordinates (NDC)
+    const glm::vec3 normalizedDeviceCoordinates = glm::vec3(clipSpacePosition) * oneOverW;
+
+    // Transform NDC coordinates (range [-1,1]) to screen space coordinates (range [0,width/height])
+    glm::vec3 screenSpacePosition;
+    screenSpacePosition.x = (normalizedDeviceCoordinates.x * 0.5f + 0.5f) * static_cast<float>(width);
+    screenSpacePosition.y = (normalizedDeviceCoordinates.y * 0.5f + 0.5f) * static_cast<float>(height);
+    screenSpacePosition.z = normalizedDeviceCoordinates.z;
+
+    return screenSpacePosition;
+} // clipSpacePositionToScreenSpace()
+
+// === TEST 26 ===
+static inline bool backFaceCulling(const glm::vec3 triangleVertex[3], const BackfaceCulling &backfaceCulling) {
+    // Skip culling if backface culling is disabled
+    if(!backfaceCulling.enabled) {
+        return false;
+    }
+
+    // Calculate the first edge vector (from vertex 0 to vertex 1)
+    const float edge1_x = triangleVertex[1].x - triangleVertex[0].x;
+    const float edge1_y = triangleVertex[1].y - triangleVertex[0].y;
+
+    // Calculate the second edge vector (from vertex 0 to vertex 2)
+    const float edge2_x = triangleVertex[2].x - triangleVertex[0].x;
+    const float edge2_y = triangleVertex[2].y - triangleVertex[0].y;
+
+    // Compute twice the signed area using 2D cross product: (edge1 × edge2)
+    // Positive area indicates counter-clockwise winding, clockwise winding is negative.
+    const float signedArea = (edge1_x * edge2_y) - (edge1_y * edge2_x);
+
+    // Determine triangle orientation (true for counter-clockwise)
+    const bool isCounterClockwise = (signedArea > 0.f);
+
+    // Determine if the triangle should be culled
+    return (isCounterClockwise != backfaceCulling.frontFaceIsCounterClockWise);
+} // backFaceCulling()
+
+// === TEST 22-24, 27-29 ===
+static inline void rasterizeTriangleUsingPineda(const GPUMemory &memory, const Program &program,
+                                                const Framebuffer &frameBuffer, const ShaderInterface &shaderInterface,
+                                                const OutVertex outTriangle[3], const glm::vec3 vertices[3], const float oneOverW[3]) {
+    // Edge AB = B - A
+    const float edgeX01 = vertices[1].x - vertices[0].x;
+    const float edgeY01 = vertices[1].y - vertices[0].y;
+
+    // Edge BC = C - B
+    const float edgeX12 = vertices[2].x - vertices[1].x;
+    const float edgeY12 = vertices[2].y - vertices[1].y;
+
+    // Edge CA = A - C
+    const float edgeX20 = vertices[0].x - vertices[2].x;
+    const float edgeY20 = vertices[0].y - vertices[2].y;
+
+    // Edge AC = C - A (needed for area calculation)
+    const float edgeX02 = vertices[2].x - vertices[0].x;
+    const float edgeY02 = vertices[2].y - vertices[0].y;
+
+    // Calculate the signed double-area of the triangle
+    const float signedDoubleArea = edgeX01 * edgeY02 - edgeY01 * edgeX02;
+
+    // Check if the area is valid (a non-zero value)
+    if(signedDoubleArea == 0.f) {
+        return;
+    }
+
+    // Calculate the absolute value of the signed double area for barycentric coordinates
+    const float areaAbs = std::fabs(signedDoubleArea);
+
+    // The area is positive for counter-clockwise triangles and negative for clockwise triangles
+    const float orientation = signedDoubleArea > 0.f ? 1.f : -1.f;
+
+    // Calculation of coefficients for the implicit line equation for each edge of the triangle (Ax + By + C = 0)
+    const float edgeA01Normal = -edgeY01 * orientation;  // A = -(y1 - y0)
+    const float edgeB01Normal = edgeX01 * orientation;   // B =  (x1 - x0)
+    const float edgeC01Normal = -(edgeA01Normal * vertices[0].x + edgeB01Normal * vertices[0].y);
+
+    const float edgeA12Normal = -edgeY12 * orientation;  // A = -(y2 - y1)
+    const float edgeB12Normal = edgeX12 * orientation;   // B =  (x2 - x1)
+    const float edgeC12Normal = -(edgeA12Normal * vertices[1].x + edgeB12Normal * vertices[1].y);
+
+    const float edgeA20Normal = -edgeY20 * orientation;  // A = -(y0 - y2)
+    const float edgeB20Normal = edgeX20 * orientation;   // B =  (x0 - x2)
+    const float edgeC20Normal = -(edgeA20Normal * vertices[2].x + edgeB20Normal * vertices[2].y);
+
+    // Set initial steps for edge functions
+    // Step in X axis
+    const float edgeStepX_12 = edgeA12Normal;
+    const float edgeStepX_20 = edgeA20Normal;
+    const float edgeStepX_01 = edgeA01Normal;
+
+    // Step in Y axis
+    const float edgeStepY_12 = edgeB12Normal;
+    const float edgeStepY_20 = edgeB20Normal;
+    const float edgeStepY_01 = edgeB01Normal;
+
+    // Calculate the bounding box of the triangle
+    // For x-cordinates: | the min/max values of x-coordinates of vertices | left bottom corner of the bounding box | largest x-coordinate |
+    const int minX = glm::clamp(static_cast<int>(std::floor(std::min({vertices[0].x, vertices[1].x, vertices[2].x}))), 0, static_cast<int>(frameBuffer.width - 1));
+    const int maxX = glm::clamp(static_cast<int>(std::ceil(std::max({vertices[0].x, vertices[1].x, vertices[2].x}))), 0, static_cast<int>(frameBuffer.width - 1));
+
+    // For y-cordinates: | the min/max values of y-coordinates of vertices | left bottom corner of the bounding box | largest y-coordinate |
+    const int minY = glm::clamp(static_cast<int>(std::floor(std::min({vertices[0].y, vertices[1].y, vertices[2].y}))), 0, static_cast<int>(frameBuffer.height - 1));
+    const int maxY = glm::clamp(static_cast<int>(std::ceil(std::max({vertices[0].y, vertices[1].y, vertices[2].y}))), 0, static_cast<int>(frameBuffer.height - 1));
+
+    // Calculate the coordinates of the center of the first pixel in the top-left corner of the bounding box
+    float rowX = minX + 0.5f;
+    float rowY = minY + 0.5f;
+
+    // Initialization of edge functions for the first pixel in the top-left corner of the bounding box
+    float edge12Row = edgeA12Normal * rowX + edgeB12Normal * rowY + edgeC12Normal;
+    float edge20Row = edgeA20Normal * rowX + edgeB20Normal * rowY + edgeC20Normal;
+    float edge01Row = edgeA01Normal * rowX + edgeB01Normal * rowY + edgeC01Normal;
+
+    // === TEST 22-24 ==
+    // Rasterization loop over the bounding box of the triangle using Pineda's edge functions
+    for(int y = minY; y <= maxY; y++) {
+        // Values of edge functions at the beginning of the row
+        float edge12 = edge12Row;
+        float edge20 = edge20Row;
+        float edge01 = edge01Row;
+
+        for(int x = minX; x <= maxX; x++) {
+            // Test if the point lies inside the triangle
+            if(edge12 >= 0 && edge20 >= 0 && edge01 >= 0) {
+                // Barycentric coordinates
+                const float lambda0 = edge12 / areaAbs;
+                const float lambda1 = edge20 / areaAbs;
+                const float lambda2 = edge01 / areaAbs;
+
+                // === TEST 27 ===
+                // Depth interpolation
+                const float depth = vertices[0].z * lambda0 + vertices[1].z * lambda1 + vertices[2].z * lambda2;
+
+                // Perspective correction for attribute interpolation
+                const float lambda0_perspectiveCorrection = lambda0 * oneOverW[0];
+                const float lambda1_perspectiveCorrection = lambda1 * oneOverW[1];
+                const float lambda2_perspectiveCorrection = lambda2 * oneOverW[2];
+
+                // Sum of perspective-corrected weights for normalization
+                const float sumWeight = lambda0_perspectiveCorrection + lambda1_perspectiveCorrection + lambda2_perspectiveCorrection;
+                const float inverseSumWeight = 1.0f / sumWeight;
+
+                // Normalized perspective-corrected weights
+                const float l0 = lambda0_perspectiveCorrection * inverseSumWeight;
+                const float l1 = lambda1_perspectiveCorrection * inverseSumWeight;
+                const float l2 = lambda2_perspectiveCorrection * inverseSumWeight;
+
+                // Creation and initialization of input structure for fragment shader
+                InFragment inFragment;
+                inFragment.gl_FragCoord = glm::vec4(x + 0.5f, y + 0.5f, depth, inverseSumWeight);
+
+                // === TEST 28-29 ===
+                // Interpolation of attributes from vertex shader
+                interpolateFragmentAttributes(inFragment, program, outTriangle, l0, l1, l2);
+
+                // === TEST 22 ===
+                // Call the fragment shader
+                OutFragment outFragment;
+                program.fragmentShader(outFragment, inFragment, shaderInterface);
+
+                // === TEST 22-24 ===
+                // Write the color to the framebuffer
+                writeColor(frameBuffer, x, y, outFragment.gl_FragColor, memory.blockWrites.color, frameBuffer.yReversed);
+            } // if(edge12 >= 0 && edge20 >= 0 && edge01 >= 0)
+
+            // Update the horizontal part of edge functions for the next pixel in the row
+            edge12 += edgeStepX_12;
+            edge20 += edgeStepX_20;
+            edge01 += edgeStepX_01;
+        } // for(x)
+
+        // Update the vertical part of edge functions for the next row
+        edge12Row += edgeStepY_12;
+        edge20Row += edgeStepY_20;
+        edge01Row += edgeStepY_01;
+    } // for(y)
+} // rasterizeTriangleUsingPineda()
+
+// === TEST 28-29 ===
+static inline void interpolateFragmentAttributes(InFragment &inFragment, const Program &program, const OutVertex outVertices[3],
+                                                 const float lambda0, const float lambda1, const float lambda2) {
+    // Iterate through all possible vertex attributes
+    for(uint32_t iAttribute = 0; iAttribute < maxAttribs; iAttribute++) {
+        // Process the attribute based on its type
+        switch(program.vs2fs[iAttribute]) {
+            case AttribType::EMPTY: {
+                // Skip empty attributes
+                continue;
+            }
+            case AttribType::FLOAT: {
+                // Interpolate float value using barycentric coordinates
+                float vertex0 = outVertices[0].attributes[iAttribute].v1;
+                float vertex1 = outVertices[1].attributes[iAttribute].v1;
+                float vertex2 = outVertices[2].attributes[iAttribute].v1;
+
+                inFragment.attributes[iAttribute].v1 = vertex0 * lambda0 + vertex1 * lambda1 + vertex2 * lambda2;
+
+                break;
+            }
+            case AttribType::VEC2: {
+                // Interpolate vec2 components using barycentric coordinates
+                glm::vec2 vertex0 = outVertices[0].attributes[iAttribute].v2;
+                glm::vec2 vertex1 = outVertices[1].attributes[iAttribute].v2;
+                glm::vec2 vertex2 = outVertices[2].attributes[iAttribute].v2;
+
+                inFragment.attributes[iAttribute].v2 = vertex0 * lambda0 + vertex1 * lambda1 + vertex2 * lambda2;
+
+                break;
+            }
+            case AttribType::VEC3: {
+                // Interpolate vec3 components using barycentric coordinates
+                glm::vec3 vertex0 = outVertices[0].attributes[iAttribute].v3;
+                glm::vec3 vertex1 = outVertices[1].attributes[iAttribute].v3;
+                glm::vec3 vertex2 = outVertices[2].attributes[iAttribute].v3;
+
+                inFragment.attributes[iAttribute].v3 = vertex0 * lambda0 + vertex1 * lambda1 + vertex2 * lambda2;
+
+                break;
+            }
+            case AttribType::VEC4: {
+                // Interpolate vec4 components using barycentric coordinates
+                glm::vec4 vertex0 = outVertices[0].attributes[iAttribute].v4;
+                glm::vec4 vertex1 = outVertices[1].attributes[iAttribute].v4;
+                glm::vec4 vertex2 = outVertices[2].attributes[iAttribute].v4;
+
+                inFragment.attributes[iAttribute].v4 = vertex0 * lambda0 + vertex1 * lambda1 + vertex2 * lambda2;
+
+                break;
+            }
+            case AttribType::UINT:
+            case AttribType::UVEC2:
+            case AttribType::UVEC3:
+            case AttribType::UVEC4: {
+                // For integer attributes, we use flat shading
+                inFragment.attributes[iAttribute] = outVertices[0].attributes[iAttribute];
+                continue;
+            }
+            default:
+                break;
+        } // switch(AttributeType)
+    } // for(iAttribute)
+} // interpolateFragmentAttributes()
+
+// === TEST 22-24 ===
+static inline void writeColor(const Framebuffer &frameBuffer, const uint32_t pixelX, const uint32_t pixelY,
+                              const glm::vec4 &color, const bool blockWrites, const bool yReversed) {
+    // Skip writing if color buffer is not available or color writing is blocked
+    if(!frameBuffer.color.data || blockWrites) {
+        return;
+    }
+
+    // Get pointer to the pixel at coordinates [x,y], handling y-reversed if needed
+    uint8_t *pixelPointer = getPixelMaybeReversed(frameBuffer.color, pixelX, pixelY, frameBuffer.height, yReversed);
+
+    // Write R, G, B, A color components converted from normalized [0,1] to byte [0,255] values
+    pixelPointer[0] = castNormalizedFloatToUnsignedInt8(color.r);  // RED
+    pixelPointer[1] = castNormalizedFloatToUnsignedInt8(color.g);  // GREEN
+    pixelPointer[2] = castNormalizedFloatToUnsignedInt8(color.b);  // BLUE
+    pixelPointer[3] = castNormalizedFloatToUnsignedInt8(color.a);  // ALPHA
+} // writeColor()
 
 /*** end of file gpu.cpp ***/

@@ -228,6 +228,13 @@ uint8_t castNormalizedFloatToUnsignedInt8(float value);
  */
 float getColorChannel(const glm::vec4 &color, Image::Channel channel);
 
+
+/******************************************************************************/
+/*                                                                            */
+/*                           VERTEX SHADER HELPERS                            */
+/*                                                                            */
+/******************************************************************************/
+
 /**
  * @brief Gets the vertex index for use in vertex assembly.
  *
@@ -255,5 +262,100 @@ uint32_t getVertexIndex(const GPUMemory &memory, uint32_t vertexNumber);
  *                 assembled data.
  */
 void assembleVertex(const GPUMemory &memory, InVertex &inVertex);
+
+
+/******************************************************************************/
+/*                                                                            */
+/*                           RASTERIZATION HELPERS                            */
+/*                                                                            */
+/******************************************************************************/
+
+/**
+ * @brief Transforms clip space position to screen space coordinates.
+ *
+ * @details Performs perspective division (dividing by w) and viewport transformation
+ *          to convert clip space coordinates to screen space. This is part of the
+ *          graphics pipeline that maps from normalized device coordinates to window
+ *          coordinates.
+ *
+ * @param clipSpacePosition Position in clip space after vertex shader processing.
+ * @param width Width of the viewport in pixels.
+ * @param height Height of the viewport in pixels.
+ * @param oneOverW Output parameter storing 1/w for perspective correct interpolation.
+ *
+ * @return `glm::vec3` Screen space position (x, y, z) where x and y are pixel
+ *         coordinates and z is the depth value.
+ */
+glm::vec3 clipSpacePositionToScreenSpace(const glm::vec4 &clipSpacePosition, uint32_t width,
+                                         uint32_t height, float &oneOverW);
+
+/**
+ * @brief Determines if a triangle should be culled based on its orientation.
+ *
+ * @details Implements backface culling to eliminate triangles that face away from
+ *          the camera. This optimization avoids processing pixels that would be
+ *          occluded by front-facing geometry.
+ *
+ * @param triangleVertex Array of three screen-space vertices forming the triangle.
+ * @param backfaceCulling Configuration specifying culling mode (off, cull front, cull back).
+ *
+ * @return `true` if the triangle should be culled (skipped), `false` otherwise.
+ */
+bool backFaceCulling(const glm::vec3 triangleVertex[3], const BackfaceCulling &backfaceCulling);
+
+/**
+ * @brief Rasterizes a triangle using the Pineda algorithm.
+ *
+ * @details Converts a triangle into fragments (potential pixels) using edge functions.
+ *          For each pixel within the triangle's bounding box, determines if it's inside
+ *          the triangle, interpolates vertex attributes, and invokes the fragment shader.
+ *
+ * @param memory GPU memory containing all resources.
+ * @param program Active shader program with vertex and fragment shaders.
+ * @param frameBuffer Target framebuffer for rendering output.
+ * @param shaderInterface Interface for passing uniform data to shaders.
+ * @param outTriangle Array of three output vertices from the vertex shader.
+ * @param vertices Array of three screen-space vertex positions after viewport transform.
+ * @param oneOverW Array of 1/w values for perspective-correct interpolation.
+ */
+void rasterizeTriangleUsingPineda(const GPUMemory &memory, const Program &program,
+                                  const Framebuffer &frameBuffer, const ShaderInterface &shaderInterface,
+                                  const OutVertex outTriangle[3], const glm::vec3 vertices[3], const float oneOverW[3]);
+
+/**
+ * @brief Interpolates vertex attributes for a fragment using barycentric coordinates.
+ *
+ * @details Computes attribute values for a fragment by interpolating between the three
+ *          vertices of the triangle. Handles different attribute types according to the
+ *          program configuration. Integer attributes use flat shading (values from the
+ *          provoking vertex), while floating-point attributes are interpolated.
+ *
+ * @param inFragment Reference to the fragment where interpolated attributes will be stored.
+ * @param program The shader program containing vs2fs configuration.
+ * @param outVertices Array of three output vertices containing attribute values.
+ * @param lambda0 First barycentric coordinate.
+ * @param lambda1 Second barycentric coordinate.
+ * @param lambda2 Third barycentric coordinate.
+ */
+void interpolateFragmentAttributes(InFragment &inFragment, const Program &program,
+                                   const OutVertex outVertices[3], float lambda0,
+                                   float lambda1, float lambda2);
+
+/**
+ * @brief Writes a color value to the framebuffer at specified coordinates.
+ *
+ * @details Converts the normalized color values (0.0-1.0) to 8-bit per channel
+ *          format (0-255) and writes them to the color buffer. Handles y-coordinate
+ *          reversal and respects the write blocking flag.
+ *
+ * @param frameBuffer The target framebuffer.
+ * @param pixelX X-coordinate of the pixel.
+ * @param pixelY Y-coordinate of the pixel.
+ * @param color RGBA color value to write (normalized 0.0-1.0).
+ * @param blockWrites If true, color writing is disabled.
+ * @param yReversed If true, y-coordinates are flipped.
+ */
+void writeColor(const Framebuffer &frameBuffer, uint32_t pixelX, uint32_t pixelY,
+                const glm::vec4 &color, bool blockWrites, bool yReversed);
 
 /*** end of file gpu.hpp ***/
