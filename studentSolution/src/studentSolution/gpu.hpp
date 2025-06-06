@@ -209,10 +209,10 @@ uint8_t *getPixelMaybeReversed(const Image &image, uint32_t x, uint32_t y,
                                uint32_t height, bool yReversed);
 
 /**
- * @brief Converts a normalized float value [0.0, 1.0] to an unsigned 8-bit
- *        integer [0, 255].
+ * @brief Converts a normalized float value <0.0, 1.0> to an unsigned 8-bit
+ *        integer <0, 255>.
  *
- * @param value Float value to convert (expected to be in range [0.0, 1.0]).
+ * @param value Float value to convert (expected to be in range <0.0, 1.0>).
  *
  * @return `uint8_t` Converted 8-bit unsigned integer value.
  */
@@ -222,11 +222,11 @@ uint8_t castNormalizedFloatToUnsignedInt8(float value);
  * @brief Converts an 8-bit unsigned integer to a normalized float value.
  *
  * @details Transforms an 8-bit unsigned integer (0-255) to a float value
- *          in the normalized range [0.0, 1.0]. This is the inverse operation
+ *          in the normalized range <0.0, 1.0>. This is the inverse operation
  *          of castNormalizedFloatToUnsignedInt8.
  *
  * @param value The 8-bit unsigned integer value to convert.
- * @return `float` Normalized float value in range [0.0, 1.0].
+ * @return `float` Normalized float value in range <0.0, 1.0>.
  */
 float castUnsignedInt8ToNormalizedFloat(uint8_t value);
 
@@ -278,7 +278,7 @@ void assembleVertex(const GPUMemory &memory, InVertex &inVertex);
 
 /******************************************************************************/
 /*                                                                            */
-/*                               RASTERIZATION                                */
+/*                     RASTERIZATION inspired by IZG labs                     */
 /*                                                                            */
 /******************************************************************************/
 
@@ -297,9 +297,13 @@ void assembleVertex(const GPUMemory &memory, InVertex &inVertex);
  * @param vertices Array of three screen-space vertex positions after viewport transform.
  * @param oneOverW Array of 1/w values for perspective-correct interpolation.
  */
-void rasterizeTriangleUsingPineda(const GPUMemory &memory, const Program &program,
-                                  const Framebuffer &frameBuffer, const ShaderInterface &shaderInterface,
-                                  const OutVertex outTriangle[3], const glm::vec3 vertices[3], const float oneOverW[3]);
+void rasterizeTriangleUsingPineda(const GPUMemory &memory,
+                                  const Program &program,
+                                  const Framebuffer &frameBuffer,
+                                  const ShaderInterface &shaderInterface,
+                                  const OutVertex outTriangle[3],
+                                  const glm::vec3 vertices[3],
+                                  const float oneOverW[3]);
 
 
 /******************************************************************************/
@@ -412,7 +416,8 @@ bool executeEarlyPerFragmentOperations(const GPUMemory &memory, const Framebuffe
  * @param isFacingFront Boolean indicating if the fragment is from a front-facing primitive.
  */
 void executeLatePerFragmentOperations(const GPUMemory &memory, const Framebuffer &frameBuffer,
-                                      const InFragment &inFragment, const OutFragment &outFragment, bool isFacingFront);
+                                      const InFragment &inFragment, const OutFragment &outFragment,
+                                      bool isFacingFront);
 
 /**
  * @brief Applies a stencil operation to modify a stencil buffer value.
@@ -426,6 +431,84 @@ void executeLatePerFragmentOperations(const GPUMemory &memory, const Framebuffer
  * @param stencilOperation The operation to perform (KEEP, ZERO, REPLACE, etc.).
  * @param stencilValueReference Reference value used for the REPLACE operation (default: 0).
  */
-void executeStencilOperation(uint8_t &stencilValue, StencilOp stencilOperation, uint32_t stencilValueReference = 0);
+void executeStencilOperation(uint8_t &stencilValue, StencilOp stencilOperation,
+                             uint32_t stencilValueReference = 0);
+
+
+/********************************************************************************/
+/*                                                                              */
+/*                  CLIPPING inspired by IZG presentation and:                  */
+/* https://www.geeksforgeeks.org/polygon-clipping-sutherland-hodgman-algorithm/ */
+/*                                                                              */
+/********************************************************************************/
+
+/**
+ * @brief Clips a triangle against the near plane using the Sutherland-Hodgman
+ *        algorithm.
+ *
+ * @details This function implements near plane clipping (`z = -w`) in homogeneous
+ *          clip space. It processes each edge of the input triangle to determine
+ *          if it intersects the near plane, and generates properly clipped geometry.
+ *          The result can be 0, 1, or 2 triangles depending on how the original
+ *          triangle intersects the near plane.
+ *
+ * @param program The shader program containing attribute type information for interpolation.
+ * @param inputTriangle Array of 3 vertices representing the input triangle in clip space.
+ * @param outputTriangles Array to store up to 2 resulting triangles after clipping.
+ *
+ * @return `uint32_t` Number of triangles produced (0 = fully clipped,
+ *          1 or 2 = partially clipped).
+ */
+uint32_t clippingSutherlandHodgman(const Program &program, const OutVertex inputTriangle[3],
+                                   OutVertex outputTriangles[2][3]);
+
+/**
+ * @brief Tests if a vertex is inside the near clipping plane.
+ *
+ * @details In homogeneous clip space, the near clipping plane is defined
+ *          by `z = -w`. A vertex is inside the view volume when `z >= -w`,
+ *          which can be rewritten as `z + w >= 0`.
+ *
+ * @param vertex The vertex to test against the near clipping plane.
+ *
+ * @return `bool` `True` if the vertex is inside the view volume
+ *         (`z + w >= 0`), `false` otherwise.
+ */
+bool isVertexInsideClipPlane(const OutVertex &vertex);
+
+/**
+ * @brief Calculates the intersection point between a line segment and the
+ *        near clipping plane.
+ *
+ * @details Computes the exact point where the line segment between `firstVertex`
+ *          and `secondVertex` intersects the near plane (`z = -w`). The function
+ *          linearly interpolates all vertex attributes at the intersection point.
+ *
+ * @param program The shader program containing attribute interpolation information.
+ * @param startVertex First vertex of the line segment.
+ * @param endVertex Second vertex of the line segment.
+ *
+ * @return `OutVertex` A new vertex at the intersection point with interpolated attributes.
+ */
+OutVertex calculateClipPlaneIntersection(const Program &program, const OutVertex &startVertex,
+                                         const OutVertex &endVertex);
+
+/**
+ * @brief Creates a new vertex by linearly interpolating between two vertices.
+ *
+ * @details Performs linear interpolation of position and all vertex attributes
+ *          based on the provided interpolation factor. Different attribute
+ *          types (`float`, `vec2`, `vec3`, `vec4`) are handled according to
+ *          their type. Integer attributes use flat shading (no interpolation).
+ *
+ * @param program Program containing attribute type information.
+ * @param startVertex First source vertex.
+ * @param endVertex Second source vertex.
+ * @param interpolationFactor Value between `0.0` and `1.0` controlling the interpolation.
+ *
+ * @return `OutVertex` A new vertex with interpolated position and attributes.
+ */
+OutVertex interpolateVertex(const Program &program, const OutVertex &startVertex,
+                            const OutVertex &endVertex, float interpolationFactor);
 
 /*** end of file gpu.hpp ***/

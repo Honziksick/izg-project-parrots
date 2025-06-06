@@ -263,8 +263,6 @@ static inline void handleDrawCommand(GPUMemory &memory, const DrawCommand &drawC
 
     for(uint32_t iTriangleStart = 0; iTriangleStart < drawCommand.nofVertices; iTriangleStart += 3) {
         OutVertex outTriangle[3];
-        glm::vec3 screenVertex[3];
-        float oneOverW[3];
 
         // === TEST 14 ===
         // Process each I/O vertex in the draw command
@@ -282,24 +280,37 @@ static inline void handleDrawCommand(GPUMemory &memory, const DrawCommand &drawC
             // === TEST 14 ===
             // Run vertex shader for each vertex
             program.vertexShader(outTriangle[iVertex], inVertex, shaderInterface);
-
-            screenVertex[iVertex] = clipSpacePositionToScreenSpace(outTriangle[iVertex].gl_Position,
-                                                                   width, height, oneOverW[iVertex]);
         } // for(iVertex)
 
-        // === TEST 26 ===
-        if(backFaceCulling(screenVertex, memory.backfaceCulling)) {
-            continue;
-        }
+        // === TEST 38-41 ===
+        // Apply triangle clipping using Sutherland-Hodgman algorithm
+        OutVertex clippedTriangles[2][3];
+        const uint32_t clippedTrinaglesCount = clippingSutherlandHodgman(program, outTriangle, clippedTriangles);
 
-        // All these steps are handled by the rasterizeTriangleUsingPineda function
-        rasterizeTriangleUsingPineda(memory,            // GPU state
-                                     program,           // active program
-                                     frameBuffer,       // active framebuffer
-                                     shaderInterface,   // constants for fragment shader
-                                     outTriangle,       // vertex shader outputs
-                                     screenVertex,      // vertices in screen-space
-                                     oneOverW);         // 1/w for perspective correction
+        for(uint32_t iClippedTriangle = 0; iClippedTriangle < clippedTrinaglesCount; ++iClippedTriangle) {
+            glm::vec3 screenVertex[3];
+            float oneOverW[3];
+
+            // Apply viewport transform to each vertex of the clipped triangle
+            for(int iVertex = 0; iVertex < 3; iVertex++) {
+                screenVertex[iVertex] = clipSpacePositionToScreenSpace(clippedTriangles[iClippedTriangle][iVertex].gl_Position,
+                                                                       width, height, oneOverW[iVertex]);
+            } // for(iVertex)
+
+            // === TEST 26 ===
+            if(backFaceCulling(screenVertex, memory.backfaceCulling)) {
+                continue;
+            }
+
+            // All these steps are handled by the rasterizeTriangleUsingPineda function
+            rasterizeTriangleUsingPineda(memory,                              // GPU state
+                                         program,                             // active program
+                                         frameBuffer,                         // active framebuffer
+                                         shaderInterface,                     // constants for fragment shader
+                                         clippedTriangles[iClippedTriangle],  // vertex shader outputs
+                                         screenVertex,                        // vertices in screen-space
+                                         oneOverW);                           // 1/w for perspective correction
+        } // for(iClippedTriangle)
     } // for(iTriangle)
 
     // === TEST 12 ===
@@ -459,7 +470,7 @@ static inline void assembleVertex(const GPUMemory &memory, InVertex &inVertex) {
 
 /******************************************************************************/
 /*                                                                            */
-/*                               RASTERIZATION                                */
+/*                     RASTERIZATION inspired by IZG labs                     */
 /*                                                                            */
 /******************************************************************************/
 
@@ -891,7 +902,7 @@ static inline void executeLatePerFragmentOperations(const GPUMemory &memory, con
                                                      static_cast<uint32_t>(inFragment.gl_FragCoord.y), frameBuffer.height,
                                                      frameBuffer.yReversed);
 
-        // We need to convert the color from byte [0,255] to normalized float [0,1]
+        // We need to convert the color from byte <0, 255> to normalized float <0.0, 1.0>
         glm::vec4 existingColor;
         existingColor.r = castUnsignedInt8ToNormalizedFloat(pColorPixel[Image::RED]);
         existingColor.g = castUnsignedInt8ToNormalizedFloat(pColorPixel[Image::GREEN]);
@@ -913,13 +924,26 @@ static inline void executeLatePerFragmentOperations(const GPUMemory &memory, con
         const auto blendedB = existingColor.b * (1.f - alpha) + fragmentColor.b * alpha;
         const auto blendedA = existingColor.a * (1.f - alpha) + alpha;
 
-        // We revert the color back to byte [0,255] and write it to the framebuffer
-        pColorPixel[Image::RED] = castNormalizedFloatToUnsignedInt8(blendedR);
-        pColorPixel[Image::GREEN] = castNormalizedFloatToUnsignedInt8(blendedG);
-        pColorPixel[Image::BLUE] = castNormalizedFloatToUnsignedInt8(blendedB);
-
-        if(hasAlphaChannel) {
-            pColorPixel[Image::ALPHA] = castNormalizedFloatToUnsignedInt8(blendedA);
+        // We revert the color back to byte <0, 255> and write it to the framebuffer
+        for(uint32_t iChannel = 0; iChannel < frameBuffer.color.channels; iChannel++) {
+            switch(frameBuffer.color.channelTypes[iChannel]) {
+                case Image::RED:
+                    pColorPixel[iChannel] = castNormalizedFloatToUnsignedInt8(blendedR);
+                    break;
+                case Image::GREEN:
+                    pColorPixel[iChannel] = castNormalizedFloatToUnsignedInt8(blendedG);
+                    break;
+                case Image::BLUE:
+                    pColorPixel[iChannel] = castNormalizedFloatToUnsignedInt8(blendedB);
+                    break;
+                case Image::ALPHA:
+                    if(hasAlphaChannel) {
+                        pColorPixel[iChannel] = castNormalizedFloatToUnsignedInt8(blendedA);
+                    }
+                    break;
+                default:
+                    break;
+            }
         }
     } // color write
 } // executeLatePerFragmentOperations()
@@ -970,5 +994,153 @@ static inline void executeStencilOperation(uint8_t &stencilValue, const StencilO
             break;
     } // switch(stencilOperation)
 } // executeStencilOperation()
+
+
+/********************************************************************************/
+/*                                                                              */
+/*                  CLIPPING inspired by IZG presentation and:                  */
+/* https://www.geeksforgeeks.org/polygon-clipping-sutherland-hodgman-algorithm/ */
+/*                                                                              */
+/********************************************************************************/
+
+static inline uint32_t clippingSutherlandHodgman(const Program &program, const OutVertex inputTriangle[3],
+                                                 OutVertex outputTriangles[2][3]) {
+    // Create a copy of the input triangle vertices for processing
+    OutVertex inputPolygon[4];
+    constexpr uint32_t vertexCount{3};
+
+    inputPolygon[0] = inputTriangle[0];
+    inputPolygon[1] = inputTriangle[1];
+    inputPolygon[2] = inputTriangle[2];
+
+    // Initialize buffer for storing the clipped polygon (may have up to 4 vertices)
+    OutVertex clippedPolygon[4];
+    uint32_t clippedVertexCount{0};
+
+    // Process each edge of the triangle using Sutherland-Hodgman algorithm
+    for(uint32_t iVertex = 0; iVertex < vertexCount; iVertex++) {
+        const OutVertex &previousVertex = inputPolygon[(iVertex + vertexCount - 1) % vertexCount];
+        const OutVertex &currentVertex = inputPolygon[iVertex];
+
+        // Determine if vertices are inside or outside the clipping plane
+        const bool isPreviousInside = isVertexInsideClipPlane(previousVertex);
+        const bool isCurrentInside = isVertexInsideClipPlane(currentVertex);
+
+        // Both vertices inside - keep the current vertex
+        if(isPreviousInside && isCurrentInside) {
+            clippedPolygon[clippedVertexCount++] = currentVertex;
+        }
+        // Previous inside, current outside - add the intersection point
+        else if(isPreviousInside && !isCurrentInside) {
+            clippedPolygon[clippedVertexCount++] = calculateClipPlaneIntersection(program, previousVertex, currentVertex);
+        }
+        // Previous outside, current inside - add intersection point and current vertex
+        else if(!isPreviousInside && isCurrentInside) {
+            clippedPolygon[clippedVertexCount++] = calculateClipPlaneIntersection(program, previousVertex, currentVertex);
+            clippedPolygon[clippedVertexCount++] = currentVertex;
+        }
+        // Both vertices outside - discard (add nothing)
+        else {
+            continue;
+        }
+    } // for(iVertex)
+
+    // Handle results based on number of vertices in the clipped polygon
+    if(clippedVertexCount < vertexCount) {
+        return 0;  // triangle completely clipped away
+    }
+
+    // If exactly 3 vertices remain, output a single triangle
+    if(clippedVertexCount == vertexCount) {
+        for(uint32_t iVertex = 0; iVertex < vertexCount; iVertex++) {
+            outputTriangles[0][iVertex] = clippedPolygon[iVertex];
+        }
+        return 1; // single triangle output
+    }
+
+    // If 4 vertices remain, create two triangles using fan triangulation
+    // First triangle: vertices 0,1,2
+    outputTriangles[0][0] = clippedPolygon[0];
+    outputTriangles[0][1] = clippedPolygon[1];
+    outputTriangles[0][2] = clippedPolygon[2];
+
+    // Second triangle: vertices 0,2,3
+    outputTriangles[1][0] = clippedPolygon[0];
+    outputTriangles[1][1] = clippedPolygon[2];
+    outputTriangles[1][2] = clippedPolygon[3];
+
+    return 2; // two triangles output
+} // clippingSutherlandHodgman()
+
+static inline bool isVertexInsideClipPlane(const OutVertex &vertex) {
+    return ((vertex.gl_Position.z + vertex.gl_Position.w) >= 0.f);
+} // isVertexInsideClipPlane()
+
+static inline OutVertex calculateClipPlaneIntersection(const Program &program, const OutVertex &startVertex,
+                                                       const OutVertex &endVertex) {
+    // Calculate interpolation factor 't' based on the distance to the clipping plane
+    const float sumFirst = startVertex.gl_Position.z + startVertex.gl_Position.w;  // distance from A to plane
+    const float sumSecond = endVertex.gl_Position.z + endVertex.gl_Position.w;     // distance from B to plane
+
+    float t = sumFirst / (sumFirst - sumSecond);  // parametric distance along line
+    t = glm::clamp(t, 0.f, 1.f);                  // ensure interpolation factor 't' is in valid range <0.0, 1.0>
+
+    // Generate the new vertex at the intersection point
+    return interpolateVertex(program, startVertex, endVertex, t);
+}
+
+static inline OutVertex interpolateVertex(const Program &program, const OutVertex &startVertex,
+                                          const OutVertex &endVertex, const float interpolationFactor) {
+    OutVertex result; // create a new out vertex to store the result
+
+    // Linearly interpolate homogeneous position coordinates
+    result.gl_Position = startVertex.gl_Position + interpolationFactor * (endVertex.gl_Position - startVertex.gl_Position);
+
+    // Interpolate all vertex attributes based on their data types
+    for(uint32_t iAttribute = 0; iAttribute < maxAttribs; iAttribute++) {
+        switch(program.vs2fs[iAttribute]) {
+            // For scalar values, use simple linear interpolation
+            case AttribType::FLOAT: {
+                result.attributes[iAttribute].v1 = glm::mix(startVertex.attributes[iAttribute].v1,
+                                                            endVertex.attributes[iAttribute].v1,
+                                                            interpolationFactor);
+                break;
+            }
+            // For 2D vectors, interpolate each component
+            case AttribType::VEC2: {
+                result.attributes[iAttribute].v2 = glm::mix(startVertex.attributes[iAttribute].v2,
+                                                            endVertex.attributes[iAttribute].v2,
+                                                            interpolationFactor);
+                break;
+            }
+            // For 3D vectors, interpolate each component
+            case AttribType::VEC3: {
+                result.attributes[iAttribute].v3 = glm::mix(startVertex.attributes[iAttribute].v3,
+                                                            endVertex.attributes[iAttribute].v3,
+                                                            interpolationFactor);
+                break;
+            }
+            // For 4D vectors, interpolate each component
+            case AttribType::VEC4: {
+                result.attributes[iAttribute].v4 = glm::mix(startVertex.attributes[iAttribute].v4,
+                                                            endVertex.attributes[iAttribute].v4,
+                                                            interpolationFactor);
+                break;
+            }
+            // Integer attributes use flat shading - take value from first vertex
+            case AttribType::UINT:
+            case AttribType::UVEC2:
+            case AttribType::UVEC3:
+            case AttribType::UVEC4:
+            case AttribType::EMPTY:
+            default: {
+                result.attributes[iAttribute] = startVertex.attributes[iAttribute];
+                break;
+            }
+        } // switch(program.vs2fs[attributeIndex])
+    } // for(iAttribute)
+
+    return result;
+} // interpolateVertex()
 
 /*** end of file gpu.cpp ***/
