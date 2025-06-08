@@ -412,8 +412,7 @@ void executeLatePerFragmentOperations(const GPUMemory &memory, const Framebuffer
  * @param stencilOperation The operation to perform (KEEP, ZERO, REPLACE, etc.).
  * @param stencilValueReference Reference value used for the REPLACE operation (default: 0).
  */
-void executeStencilOperation(uint8_t &stencilValue, StencilOp stencilOperation,
-                             uint32_t stencilValueReference = 0);
+void executeStencilOperation(uint8_t &stencilValue, StencilOp stencilOperation, uint32_t stencilValueReference);
 
 
 /********************************************************************************/

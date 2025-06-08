@@ -29,6 +29,53 @@
  * classic if-else statements (and often are more readable too :-) ).
  */
 
+
+/******************************************************************************/
+/*                                                                            */
+/*                    PROTOTYPES of used custom functions                     */
+/*                                                                            */
+/******************************************************************************/
+
+#ifndef XKALINJ00_GPU_SOLUTION
+#define XKALINJ00_GPU_SOLUTION
+
+void executeCommandBuffer(GPUMemory &memory, const CommandBuffer &commandBuffer);
+void handleCommand(GPUMemory &memory, CommandType type, const CommandData &data);
+void handleBindFramebufferCommand(GPUMemory &memory, const CommandData &commandData);
+void handleBindProgramCommand(GPUMemory &memory, const CommandData &commandData);
+void handleBindVertexArrayCommand(GPUMemory &memory, const CommandData &commandData);
+void handleBlockWritesCommand(GPUMemory &memory, const CommandData &commandData);
+void handleSetBackfaceCullingCommand(GPUMemory &memory, const CommandData &commandData);
+void handleSetFrontFaceCommand(GPUMemory &memory, const CommandData &commandData);
+void handleSetStencilCommand(GPUMemory &memory, const CommandData &commandData);
+void handleSetDrawIdCommand(GPUMemory &memory, const CommandData &commandData);
+void handleClearColorCommand(const GPUMemory &memory, const ClearColorCommand &clearColorCommand);
+void handleClearDepthCommand(const GPUMemory &memory, const ClearDepthCommand &clearDepthCommand);
+void handleClearStencilCommand(const GPUMemory &memory, const ClearStencilCommand &clearStencilCommand);
+void handleUserCommand(const UserCommand &userCommand);
+void handleDrawCommand(GPUMemory &memory, const DrawCommand &drawCommand);
+void handleSubCommand(GPUMemory &memory, const CommandBuffer *pSubCommandBuffer);
+uint32_t getVertexIndex(const GPUMemory &memory, uint32_t vertexIndex);
+void vertexAssemblyUnit(const GPUMemory &memory, InVertex &inVertex);
+glm::vec3 perspectiveDivision(const glm::vec4 &clipSpacePosition, float &oneOverW);
+glm::vec3 viewportTransformation(const glm::vec3 &normalizedDeviceCoordinates, uint32_t width, uint32_t height);
+bool backFaceCulling(const glm::vec3 triangleVertex[3], const BackfaceCulling &backfaceCulling);
+void rasterizeTriangleUsingPineda(const GPUMemory &memory, const Program &program, const Framebuffer &frameBuffer, const ShaderInterface &shaderInterface,
+                                  const OutVertex outTriangle[3], const glm::vec3 vertices[3], const float oneOverW[3]);
+void interpolateFragmentAttributes(const Program &program, float lambda0, float lambda1, float lambda2, InFragment &inFragment, const OutVertex outVertices[3]);
+bool executeEarlyPerFragmentOperations(const GPUMemory &memory, const Framebuffer &frameBuffer, const InFragment &inFragment, bool isFacingFront);
+void executeLatePerFragmentOperations(const GPUMemory &memory, const Framebuffer &frameBuffer, const InFragment &inFragment, const OutFragment &outFragment, bool isFacingFront);
+void executeStencilOperation(uint8_t &stencilValue, StencilOp stencilOperation, uint32_t stencilValueReference);
+uint32_t clippingSutherlandHodgman(const Program &program, const OutVertex inputTriangle[3], OutVertex outputTriangles[2][3]);
+bool isVertexInsideClipPlane(const OutVertex &vertex);
+OutVertex calculateClipPlaneIntersection(const Program &program, const OutVertex &startVertex, const OutVertex &endVertex);
+OutVertex interpolateVertex(const Program &program, const OutVertex &startVertex, const OutVertex &endVertex, float t);
+uint8_t *getPixelMaybeReversed(const Image &image, uint32_t x, uint32_t y, uint32_t height, bool yReversed);
+uint8_t castNormalizedFloatToUnsignedInt8(float value);
+float castUnsignedInt8ToNormalizedFloat(uint8_t value);
+
+#endif // XKALINJ00_GPU_SOLUTION
+
 /******************************************************************************/
 /*                                                                            */
 /*                               MAIN GPU LOGIC                               */
@@ -47,14 +94,14 @@ void student_GPU_run(GPUMemory &mem, const CommandBuffer &cb) {
 } // student_GPU_run()
 //! [student_GPU_run]
 
-static inline void executeCommandBuffer(GPUMemory &memory, const CommandBuffer &commandBuffer) {
+inline void executeCommandBuffer(GPUMemory &memory, const CommandBuffer &commandBuffer) {
     // Execute each command in the command buffer
     for(uint32_t iCommand = 0; iCommand < commandBuffer.nofCommands; iCommand++) {
         handleCommand(memory, commandBuffer.commands[iCommand].type, commandBuffer.commands[iCommand].data);
     } // for(iCommand)
 } // executeCommandBuffer()
 
-static inline void handleCommand(GPUMemory &memory, const CommandType type, const CommandData &data) {
+inline void handleCommand(GPUMemory &memory, const CommandType type, const CommandData &data) {
     switch(type) {
         /**********************************************************************/
         /*                       03.1 BINDING commands                        */
@@ -152,47 +199,47 @@ static inline void handleCommand(GPUMemory &memory, const CommandType type, cons
 /******************************************************************************/
 
 // === TEST 0 ===
-static inline void handleBindFramebufferCommand(GPUMemory &memory, const CommandData &commandData) {
+inline void handleBindFramebufferCommand(GPUMemory &memory, const CommandData &commandData) {
     memory.activatedFramebuffer = commandData.bindFramebufferCommand.id;
 } // handleBindFramebufferCommand()
 
 // === TEST 1 ===
-static inline void handleBindProgramCommand(GPUMemory &memory, const CommandData &commandData) {
+inline void handleBindProgramCommand(GPUMemory &memory, const CommandData &commandData) {
     memory.activatedProgram = commandData.bindProgramCommand.id;
 } // handleBindProgramCommand()
 
 // === TEST 2 ===
-static inline void handleBindVertexArrayCommand(GPUMemory &memory, const CommandData &commandData) {
+inline void handleBindVertexArrayCommand(GPUMemory &memory, const CommandData &commandData) {
     memory.activatedVertexArray = commandData.bindVertexArrayCommand.id;
 } // handleBindVertexArrayCommand()
 
 // === TEST 3 ===
-static inline void handleBlockWritesCommand(GPUMemory &memory, const CommandData &commandData) {
+inline void handleBlockWritesCommand(GPUMemory &memory, const CommandData &commandData) {
     memory.blockWrites = commandData.blockWritesCommand.blockWrites;
 } // handleBlockWritesCommand()
 
 // === TEST 4 ===
-static inline void handleSetBackfaceCullingCommand(GPUMemory &memory, const CommandData &commandData) {
+inline void handleSetBackfaceCullingCommand(GPUMemory &memory, const CommandData &commandData) {
     memory.backfaceCulling.enabled = commandData.setBackfaceCullingCommand.enabled;
 } // handleSetBackfaceCullingCommand()
 
 // === TEST 5 ===
-static inline void handleSetFrontFaceCommand(GPUMemory &memory, const CommandData &commandData) {
+inline void handleSetFrontFaceCommand(GPUMemory &memory, const CommandData &commandData) {
     memory.backfaceCulling.frontFaceIsCounterClockWise = commandData.setFrontFaceCommand.frontFaceIsCounterClockWise;
 } // handleSetFrontFaceCommand()
 
 // === TEST 6 ===
-static inline void handleSetStencilCommand(GPUMemory &memory, const CommandData &commandData) {
+inline void handleSetStencilCommand(GPUMemory &memory, const CommandData &commandData) {
     memory.stencilSettings = commandData.setStencilCommand.settings;
 } // handleSetStencilCommand()
 
 // === TEST 7 ===
-static inline void handleSetDrawIdCommand(GPUMemory &memory, const CommandData &commandData) {
+inline void handleSetDrawIdCommand(GPUMemory &memory, const CommandData &commandData) {
     memory.gl_DrawID = commandData.setDrawIdCommand.id;
 } // handleSetDrawIdCommand()
 
 // === TEST 8-10 ===
-static inline void handleClearColorCommand(const GPUMemory &memory, const ClearColorCommand &clearColorCommand) {
+inline void handleClearColorCommand(const GPUMemory &memory, const ClearColorCommand &clearColorCommand) {
     // Select framebuffer
     const Framebuffer &framebuffer = memory.framebuffers[memory.activatedFramebuffer];
 
@@ -241,7 +288,7 @@ static inline void handleClearColorCommand(const GPUMemory &memory, const ClearC
 } // handleClearColorCommand()
 
 // === TEST 8-10 ===
-static inline void handleClearDepthCommand(const GPUMemory &memory, const ClearDepthCommand &clearDepthCommand) {
+inline void handleClearDepthCommand(const GPUMemory &memory, const ClearDepthCommand &clearDepthCommand) {
     // Select framebuffer
     const Framebuffer &framebuffer = memory.framebuffers[memory.activatedFramebuffer];
 
@@ -260,7 +307,7 @@ static inline void handleClearDepthCommand(const GPUMemory &memory, const ClearD
 } // handleClearDepthCommand()
 
 // === TEST 8-10 ===
-static inline void handleClearStencilCommand(const GPUMemory &memory, const ClearStencilCommand &clearStencilCommand) {
+inline void handleClearStencilCommand(const GPUMemory &memory, const ClearStencilCommand &clearStencilCommand) {
     // Select framebuffer
     const Framebuffer &framebuffer = memory.framebuffers[memory.activatedFramebuffer];
 
@@ -279,7 +326,7 @@ static inline void handleClearStencilCommand(const GPUMemory &memory, const Clea
 } // handleClearStencilCommand()
 
 // === TEST 11 ===
-static inline void handleUserCommand(const UserCommand &userCommand) {
+inline void handleUserCommand(const UserCommand &userCommand) {
     // If user collback is NULL we ignore it as described in test 11
     if(userCommand.callback) {
         userCommand.callback(userCommand.data);
@@ -287,7 +334,7 @@ static inline void handleUserCommand(const UserCommand &userCommand) {
 } // handleUserCommand()
 
 // === TEST 12, 14-41 ===
-static inline void handleDrawCommand(GPUMemory &memory, const DrawCommand &drawCommand) {
+inline void handleDrawCommand(GPUMemory &memory, const DrawCommand &drawCommand) {
     // Get the drawing program from memory (as described in === TEST 14 ===)
     const Program &program = memory.programs[memory.activatedProgram];
 
@@ -361,7 +408,7 @@ static inline void handleDrawCommand(GPUMemory &memory, const DrawCommand &drawC
                                          frameBuffer,                         // active framebuffer
                                          shaderInterface,                     // constants for fragment shader
                                          clippedTriangles[iClippedTriangle],  // vertex shader outputs
-                                         screenSpaceVertices,                        // vertices in screen-space
+                                         screenSpaceVertices,                 // vertices in screen-space
                                          oneOverW);                           // 1/w for perspective correction
         } // for(iClippedTriangle)
     } // for(iTriangle)
@@ -371,7 +418,7 @@ static inline void handleDrawCommand(GPUMemory &memory, const DrawCommand &drawC
 } // handleDrawCommand()
 
 // === TEST 13 ===
-static inline void handleSubCommand(GPUMemory &memory, const CommandBuffer *pSubCommandBuffer) {
+inline void handleSubCommand(GPUMemory &memory, const CommandBuffer *pSubCommandBuffer) {
     // Note: In this implementation I slightly deviated from the given pseudo-code.
     //       In my version, I spared minimally one if-else statement and also
     //       rather elegantly solved the Draw ID incrementation as shown int the
@@ -392,7 +439,7 @@ static inline void handleSubCommand(GPUMemory &memory, const CommandBuffer *pSub
 /******************************************************************************/
 
 // === TEST 18 ===
-static inline uint32_t getVertexIndex(const GPUMemory &memory, const uint32_t vertexIndex) {
+inline uint32_t getVertexIndex(const GPUMemory &memory, const uint32_t vertexIndex) {
     // Activated settings table for vertex assembly unit
     const VertexArray &vertexArray = memory.vertexArrays[memory.activatedVertexArray];
 
@@ -433,7 +480,7 @@ static inline uint32_t getVertexIndex(const GPUMemory &memory, const uint32_t ve
 } // getVertexIndex()
 
 // === TEST 19-21 ===
-static inline void vertexAssemblyUnit(const GPUMemory &memory, InVertex &inVertex) {
+inline void vertexAssemblyUnit(const GPUMemory &memory, InVertex &inVertex) {
     const VertexArray &vertexArray = memory.vertexArrays[memory.activatedVertexArray];
 
     // For each vertex attribute, we read the data from the corresponding buffer
@@ -500,7 +547,7 @@ static inline void vertexAssemblyUnit(const GPUMemory &memory, InVertex &inVerte
 /******************************************************************************/
 
 // === TEST 25 ===
-static inline glm::vec3 perspectiveDivision(const glm::vec4 &clipSpacePosition, float &oneOverW) {
+inline glm::vec3 perspectiveDivision(const glm::vec4 &clipSpacePosition, float &oneOverW) {
     // Calculate inverse of w-component (1/w) for perspective division
     oneOverW = 1.f / clipSpacePosition.w;
 
@@ -509,8 +556,8 @@ static inline glm::vec3 perspectiveDivision(const glm::vec4 &clipSpacePosition, 
 } // perspectiveDivision()
 
 // === TEST 25 ===
-static inline glm::vec3 viewportTransformation(const glm::vec3 &normalizedDeviceCoordinates,
-                                               const uint32_t width, const uint32_t height) {
+inline glm::vec3 viewportTransformation(const glm::vec3 &normalizedDeviceCoordinates,
+                                        const uint32_t width, const uint32_t height) {
     glm::vec3 screenSpacePosition;
 
     // Transform NDC coordinates (range [-1,1]) to screen space coordinates (range [0,width/height])
@@ -522,7 +569,7 @@ static inline glm::vec3 viewportTransformation(const glm::vec3 &normalizedDevice
 } // viewportTransformation()
 
 // === TEST 26 ===
-static inline bool backFaceCulling(const glm::vec3 triangleVertex[3], const BackfaceCulling &backfaceCulling) {
+inline bool backFaceCulling(const glm::vec3 triangleVertex[3], const BackfaceCulling &backfaceCulling) {
     // Skip culling if backface culling is disabled
     if(!backfaceCulling.enabled) {
         return false;
@@ -563,13 +610,13 @@ static inline bool backFaceCulling(const glm::vec3 triangleVertex[3], const Back
 /******************************************************************************/
 
 // === TEST 22-24, 27-29 ===
-static inline void rasterizeTriangleUsingPineda(const GPUMemory &memory,
-    /*****************************************/ const Program &program,
-    /*                   C                   */ const Framebuffer &frameBuffer,
-    /*  v(CA) = -v(AC)  / \  v(BC)           */ const ShaderInterface &shaderInterface,
-    /*                 /   \                 */ const OutVertex outTriangle[3],
-    /*                A-----B                */ const glm::vec3 vertices[3],
-    /*                 v(AB)                 */ const float oneOverW[3]) {
+inline void rasterizeTriangleUsingPineda(const GPUMemory &memory,
+    /**********************************/ const Program &program,
+    /*                    C           */ const Framebuffer &frameBuffer,
+    /*   v(CA) = -v(AC)  / \  v(BC)   */ const ShaderInterface &shaderInterface,
+    /*                  /   \         */ const OutVertex outTriangle[3],
+    /*                 A-----B        */ const glm::vec3 vertices[3],
+    /*                  v(AB)         */ const float oneOverW[3]) {
     /**************************************************************************/
     /*                Calculate vectors/edges of the triangle                 */
     /**************************************************************************/
@@ -773,9 +820,9 @@ static inline void rasterizeTriangleUsingPineda(const GPUMemory &memory,
 } // rasterizeTriangleUsingPineda()
 
 // === TEST 28-29 ===
-static inline void interpolateFragmentAttributes(const Program &program, const float lambda0,
-                                                 const float lambda1, const float lambda2,
-                                                 InFragment &inFragment, const OutVertex outVertices[3]) {
+inline void interpolateFragmentAttributes(const Program &program, const float lambda0,
+                                          const float lambda1, const float lambda2,
+                                          InFragment &inFragment, const OutVertex outVertices[3]) {
     // Iterate through all possible vertex attributes
     for(uint32_t iAttribute = 0; iAttribute < maxAttribs; iAttribute++) {
         // fragment.attribute = vertex[0].attribute * λ0 + vertex[1].attribute * λ1 + vertex[2].attribute * λ2
@@ -843,8 +890,8 @@ static inline void interpolateFragmentAttributes(const Program &program, const f
 /*                                                                            */
 /******************************************************************************/
 
-static inline bool executeEarlyPerFragmentOperations(const GPUMemory &memory, const Framebuffer &frameBuffer,
-                                                     const InFragment &inFragment, const bool isFacingFront) {
+inline bool executeEarlyPerFragmentOperations(const GPUMemory &memory, const Framebuffer &frameBuffer,
+                                              const InFragment &inFragment, const bool isFacingFront) {
     // Check if the fragment is facing front or back
     const auto &[sfail, dpfail, dppass] = isFacingFront
                                               ? memory.stencilSettings.frontOps
@@ -948,9 +995,9 @@ static inline bool executeEarlyPerFragmentOperations(const GPUMemory &memory, co
     return true; // fragment processing continues (goes to fragment shader)
 } // executeEarlyPerFragmentOperations()
 
-static inline void executeLatePerFragmentOperations(const GPUMemory &memory, const Framebuffer &frameBuffer,
-                                                    const InFragment &inFragment, const OutFragment &outFragment,
-                                                    const bool isFacingFront) {
+inline void executeLatePerFragmentOperations(const GPUMemory &memory, const Framebuffer &frameBuffer,
+                                             const InFragment &inFragment, const OutFragment &outFragment,
+                                             const bool isFacingFront) {
     // === TEST 34 ===
     // Discarding
     if(outFragment.discard) {
@@ -1042,8 +1089,8 @@ static inline void executeLatePerFragmentOperations(const GPUMemory &memory, con
     } // color write
 } // executeLatePerFragmentOperations()
 
-static inline void executeStencilOperation(uint8_t &stencilValue, const StencilOp stencilOperation,
-                                           const uint32_t stencilValueReference) {
+inline void executeStencilOperation(uint8_t &stencilValue, const StencilOp stencilOperation,
+                                    const uint32_t stencilValueReference) {
     /*
      * Note: Of course, INCR_WRAP and DECR_WRAP operations could be easily implemented
      *       by using if-else statement, but that would be inefficient. As an
@@ -1108,8 +1155,8 @@ static inline void executeStencilOperation(uint8_t &stencilValue, const StencilO
 /*                                                                              */
 /********************************************************************************/
 
-static inline uint32_t clippingSutherlandHodgman(const Program &program, const OutVertex inputTriangle[3],
-                                                 OutVertex outputTriangles[2][3]) {
+inline uint32_t clippingSutherlandHodgman(const Program &program, const OutVertex inputTriangle[3],
+                                          OutVertex outputTriangles[2][3]) {
     /*
      * Note: When choosing the clipping algorithm to use (from those described
      *       in the IZG lecture presentation), I was mainly choosing between
@@ -1189,13 +1236,13 @@ static inline uint32_t clippingSutherlandHodgman(const Program &program, const O
     return 2; // two triangles output
 } // clippingSutherlandHodgman()
 
-static inline bool isVertexInsideClipPlane(const OutVertex &vertex) {
+inline bool isVertexInsideClipPlane(const OutVertex &vertex) {
     // Inequality for near plane: -X(t)_w <= X(t)_z ~~> X(t)_z + X(t)_w >= 0
     return (vertex.gl_Position.z + vertex.gl_Position.w >= 0.f);
 } // isVertexInsideClipPlane()
 
-static inline OutVertex calculateClipPlaneIntersection(const Program &program, const OutVertex &startVertex,
-                                                       const OutVertex &endVertex) {
+inline OutVertex calculateClipPlaneIntersection(const Program &program, const OutVertex &startVertex,
+                                                const OutVertex &endVertex) {
     // Derivation of the parameter 't' (14 Ořez: Teorie ořezu):
     // -X(t)_w = X(t)_z
     // ...
@@ -1215,8 +1262,8 @@ static inline OutVertex calculateClipPlaneIntersection(const Program &program, c
     return interpolateVertex(program, startVertex, endVertex, t);
 }
 
-static inline OutVertex interpolateVertex(const Program &program, const OutVertex &startVertex,
-                                          const OutVertex &endVertex, const float t) {
+inline OutVertex interpolateVertex(const Program &program, const OutVertex &startVertex,
+                                   const OutVertex &endVertex, const float t) {
     OutVertex result; // create a new out vertex to store the result
 
     // Linearly interpolate homogeneous position coordinates (14 Ořez: Teorie ořezu):
@@ -1278,8 +1325,8 @@ static inline OutVertex interpolateVertex(const Program &program, const OutVerte
 /*                                                                            */
 /******************************************************************************/
 
-static inline uint8_t *getPixelMaybeReversed(const Image &image, const uint32_t x, const uint32_t y,
-                                             const uint32_t height, const bool yReversed) {
+inline uint8_t *getPixelMaybeReversed(const Image &image, const uint32_t x, const uint32_t y,
+                                      const uint32_t height, const bool yReversed) {
     // Choose the y-coordinate based on whether the image is y-reversed
     uint32_t yMmaybeReversed{y};
 
@@ -1291,11 +1338,11 @@ static inline uint8_t *getPixelMaybeReversed(const Image &image, const uint32_t 
     return static_cast<uint8_t*>(image.data) + (yMmaybeReversed * image.pitch) + (x * image.bytesPerPixel);
 } // getPixelMaybeReversed()
 
-static inline uint8_t castNormalizedFloatToUnsignedInt8(const float value) {
+inline uint8_t castNormalizedFloatToUnsignedInt8(const float value) {
     return static_cast<uint8_t>(glm::clamp(value, 0.f, 1.f) * 255.f + 0.5f);
 } // castNormalizedFloatToUnsignedInt8()
 
-static inline float castUnsignedInt8ToNormalizedFloat(const uint8_t value) {
+inline float castUnsignedInt8ToNormalizedFloat(const uint8_t value) {
     return static_cast<float>(value) / 255.0f;
 } // castUnsignedInt8ToNormalizedFloat()
 
