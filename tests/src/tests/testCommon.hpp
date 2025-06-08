@@ -53,6 +53,7 @@ bool equalFloats(float const& a, float const& b,float err = floatErr);
 bool equalVec2(glm::vec2 const&a,glm::vec2 const&b,float err = floatErr);
 bool equalVec3(glm::vec3 const&a,glm::vec3 const&b,float err = floatErr);
 bool equalVec4(glm::vec4 const&a,glm::vec4 const&b,float err = floatErr);
+bool equalMat4(glm::mat4 const&a,glm::mat4 const&b,float err = floatErr);
 
 bool equalCounts(size_t a,size_t b,size_t err = 10);
 bool equalCountsPercentage(size_t e,size_t s,float p=0.1f);

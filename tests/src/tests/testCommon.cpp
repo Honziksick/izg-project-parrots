@@ -180,6 +180,14 @@ bool equalFloats(float const& a, float const& b,float err) {
   return glm::abs(a - b) <= err;
 }
 
+bool equalMat4(glm::mat4 const&a,glm::mat4 const&b,float err){
+  return
+    equalVec4(a[0],b[0],err) &&
+    equalVec4(a[1],b[1],err) &&
+    equalVec4(a[2],b[2],err) &&
+    equalVec4(a[3],b[3],err) ;
+}
+
 bool equalVec4(glm::vec4 const&a,glm::vec4 const&b,float err){
   return
     equalFloats(a.x,b.x,err) &&
@@ -1838,8 +1846,9 @@ void getImageDataDifference(
 bool isSame(Uniform const&e,Uniform const&s){
   if(isInt(e) || isInt(s)){
     if(e.i4 == s.i4)return true;
-  }else
-    if(e.m4 == s.m4)return true;
+  }else{
+    if(equalMat4(e.m4,s.m4))return true;
+  }
   return false;
 }
 
