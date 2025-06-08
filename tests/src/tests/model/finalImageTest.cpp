@@ -27,7 +27,7 @@ SCENARIO(TEST_NAME){
 
   uint32_t width  = 500;
   uint32_t height = 500;
-  
+
   switchToTeacherSolution();
   auto expFrame = createFramebuffer(width,height);
   renderMethodFrame(expFrame.frame);
@@ -51,10 +51,11 @@ SCENARIO(TEST_NAME){
   meanSquareError /= (float)(width * height * 3);
   float tol = mseThreshold;
 
-  if(!breakTest()&&meanSquareError < tol)return;
+  std::cerr << "  MSE je: " << meanSquareError << std::endl;
+  std::cerr << "  Akceptovatelná chyba je: " << tol << std::endl;
+
+  if(!breakTest() && meanSquareError < tol) return;
 
   std::cerr << "  Finální obrázek se moc liší od reference!" << std::endl;
-  std::cerr << "  MSE je: "<<meanSquareError<< std::endl;
-  std::cerr << "  Akceptovatelná chyba je: "<<tol<<std::endl;
   REQUIRE(false);
 }
