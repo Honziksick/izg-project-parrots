@@ -9,6 +9,14 @@
 
 #include <solutionInterface/gpu.hpp>
 
+/*
+ * DISCLAIMER: This header file prototype documentation was co-created with the
+ *             help of GitHub Copilot as the header file documentation is not
+ *             part of the solution or a mandatory requirement. I only prepared
+ *             this documentation to keep the beautiful assignment documentation
+ *             consistent and so it contains my function if generated anew.
+ *             Other parts of the code were written by me, Jan Kalina.
+ */
 
 /******************************************************************************/
 /*                                                                            */
@@ -57,7 +65,7 @@ void handleCommand(GPUMemory &memory, CommandType type, const CommandData &data)
 
 /******************************************************************************/
 /*                                                                            */
-/*                              COMMAND HANDLERS                              */
+/*                           03-05 COMMAND HANDLERS                           */
 /*                                                                            */
 /******************************************************************************/
 
@@ -65,89 +73,89 @@ void handleCommand(GPUMemory &memory, CommandType type, const CommandData &data)
  * @brief Handles binding a framebuffer to GPU memory.
  *
  * @param memory Reference to GPU memory where the framebuffer will be bound.
- * @param data Command data containing the framebuffer ID to bind.
+ * @param commandData Command data containing the framebuffer ID to bind.
  */
-void handleBindFramebufferCommand(GPUMemory &memory, const CommandData &data);
+void handleBindFramebufferCommand(GPUMemory &memory, const CommandData &commandData);
 
 /**
  * @brief Handles binding a shader program to GPU memory.
  *
  * @param memory Reference to GPU memory where the program will be bound.
- * @param data Command data containing the program ID to bind.
+ * @param commandData Command data containing the program ID to bind.
  */
-void handleBindProgramCommand(GPUMemory &memory, const CommandData &data);
+void handleBindProgramCommand(GPUMemory &memory, const CommandData &commandData);
 
 /**
  * @brief Handles binding a vertex array to GPU memory.
  *
  * @param memory Reference to GPU memory where the vertex array will be bound.
- * @param data Command data containing the vertex array ID to bind.
+ * @param commandData Command data containing the vertex array ID to bind.
  */
-void handleBindVertexArrayCommand(GPUMemory &memory, const CommandData &data);
+void handleBindVertexArrayCommand(GPUMemory &memory, const CommandData &commandData);
 
 /**
  * @brief Handles enabling/disabling write operations to framebuffer.
  *
  * @param memory Reference to GPU memory where write blocking will be configured.
- * @param data Command data containing block writes flag.
+ * @param commandData Command data containing block writes flag.
  */
-void handleBlockWritesCommand(GPUMemory &memory, const CommandData &data);
+void handleBlockWritesCommand(GPUMemory &memory, const CommandData &commandData);
 
 /**
  * @brief Handles enabling/disabling backface culling.
  *
  * @param memory Reference to GPU memory where backface culling will be configured.
- * @param data Command data containing backface culling parameters.
+ * @param commandData Command data containing backface culling parameters.
  */
-void handleSetBackfaceCullingCommand(GPUMemory &memory, const CommandData &data);
+void handleSetBackfaceCullingCommand(GPUMemory &memory, const CommandData &commandData);
 
 /**
  * @brief Handles setting front face winding direction.
  *
  * @param memory Reference to GPU memory where front face direction will be set.
- * @param data Command data containing front face winding direction.
+ * @param commandData Command data containing front face winding direction.
  */
-void handleSetFrontFaceCommand(GPUMemory &memory, const CommandData &data);
+void handleSetFrontFaceCommand(GPUMemory &memory, const CommandData &commandData);
 
 /**
  * @brief Handles configuring stencil test parameters.
  *
  * @param memory Reference to GPU memory where stencil settings will be updated.
- * @param data Command data containing stencil test parameters.
+ * @param commandData Command data containing stencil test parameters.
  */
-void handleSetStencilCommand(GPUMemory &memory, const CommandData &data);
+void handleSetStencilCommand(GPUMemory &memory, const CommandData &commandData);
 
 /**
  * @brief Handles setting the draw ID for instanced rendering.
  *
  * @param memory Reference to GPU memory where draw ID will be set.
- * @param data Command data containing draw ID value.
+ * @param commandData Command data containing draw ID value.
  */
-void handleSetDrawIdCommand(GPUMemory &memory, const CommandData &data);
+void handleSetDrawIdCommand(GPUMemory &memory, const CommandData &commandData);
 
 /**
  * @brief Handles clearing the color buffer with specified color.
  *
  * @param memory Reference to GPU memory containing the framebuffer.
- * @param clearCommand Command data containing the clear color value.
+ * @param clearColorCommand Command data containing the clear color value.
  */
-void handleClearColorCommand(const GPUMemory &memory, const ClearColorCommand &clearCommand);
+void handleClearColorCommand(const GPUMemory &memory, const ClearColorCommand &clearColorCommand);
 
 /**
  * @brief Handles clearing the depth buffer with specified value.
  *
  * @param memory Reference to GPU memory containing the framebuffer.
- * @param clearCommand Command data containing the clear depth value.
+ * @param clearDepthCommand Command data containing the clear depth value.
  */
-void handleClearDepthCommand(const GPUMemory &memory, const ClearDepthCommand &clearCommand);
+void handleClearDepthCommand(const GPUMemory &memory, const ClearDepthCommand &clearDepthCommand);
 
 /**
  * @brief Handles clearing the stencil buffer with specified value.
  *
  * @param memory Reference to GPU memory containing the framebuffer.
- * @param clearCommand Command data containing the clear stencil value.
+ * @param clearStencilCommand Command data containing the clear stencil value.
  */
-void handleClearStencilCommand(const GPUMemory &memory, const ClearStencilCommand &clearCommand);
+void handleClearStencilCommand(const GPUMemory &memory, const ClearStencilCommand &clearStencilCommand);
 
 /**
  * @brief Handles custom user-defined commands.
@@ -182,68 +190,15 @@ void handleDrawCommand(GPUMemory &memory, const DrawCommand &drawCommand);
  *          rendering commands and reuse of command sequences.
  *
  * @param memory Reference to GPU memory where operations will be performed.
- * @param subCommandBuffer Pointer to the sub-command buffer to be executed.
+ * @param pSubCommandBuffer Pointer to the sub-command buffer to be executed.
  */
-void handleSubCommand(GPUMemory &memory, const CommandBuffer *subCommandBuffer);
+void handleSubCommand(GPUMemory &memory, const CommandBuffer *pSubCommandBuffer);
 
 
 /******************************************************************************/
 /*                                                                            */
-/*                              HELPER FUNCTIONS                              */
-/*                                                                            */
-/******************************************************************************/
-
-/**
- * @brief Gets a pointer to a pixel in an image, handling y-coordinate
- *        reversal if needed.
- *
- * @param image Reference to the image.
- * @param x X-coordinate of the pixel.
- * @param y Y-coordinate of the pixel.
- * @param height Height of the image.
- * @param yReversed Flag indicating if y-coordinates are stored in reverse order.
- *
- * @return `uint8_t*` Pointer to the specified pixel data.
- */
-uint8_t *getPixelMaybeReversed(const Image &image, uint32_t x, uint32_t y,
-                               uint32_t height, bool yReversed);
-
-/**
- * @brief Converts a normalized float value <0.0, 1.0> to an unsigned 8-bit
- *        integer <0, 255>.
- *
- * @param value Float value to convert (expected to be in range <0.0, 1.0>).
- *
- * @return `uint8_t` Converted 8-bit unsigned integer value.
- */
-uint8_t castNormalizedFloatToUnsignedInt8(float value);
-
-/**
- * @brief Converts an 8-bit unsigned integer to a normalized float value.
- *
- * @details Transforms an 8-bit unsigned integer (0-255) to a float value
- *          in the normalized range <0.0, 1.0>. This is the inverse operation
- *          of castNormalizedFloatToUnsignedInt8.
- *
- * @param value The 8-bit unsigned integer value to convert.
- * @return `float` Normalized float value in range <0.0, 1.0>.
- */
-float castUnsignedInt8ToNormalizedFloat(uint8_t value);
-
-/**
- * @brief Extracts a specific color channel from a color vector.
- *
- * @param color RGBA color vector.
- * @param channel The color channel to extract (R, G, B, or A).
- *
- * @return `float` The value of the specified color channel.
- */
-float getColorChannel(const glm::vec4 &color, Image::Channel channel);
-
-
-/******************************************************************************/
-/*                                                                            */
-/*                           VERTEX SHADER HELPERS                            */
+/*           VERTEX PART of VECTOR GPU PART - VERTEX ASSEMBLY UNIT            */
+/*                   ('07 Vektorová čast GPU: část vertexů')                  */
 /*                                                                            */
 /******************************************************************************/
 
@@ -255,11 +210,11 @@ float getColorChannel(const glm::vec4 &color, Image::Channel channel);
  *          For indexed drawing, handles different index formats (U8, U16, U32).
  *
  * @param memory Reference to GPU memory containing buffers and vertex arrays.
- * @param vertexNumber Sequence number of the vertex in the drawing command.
+ * @param vertexIndex Sequence number of the vertex in the drawing command.
  *
  * @return `uint32_t` The vertex index value (`gl_VertexID`) for the given vertex.
  */
-uint32_t getVertexIndex(const GPUMemory &memory, uint32_t vertexNumber);
+uint32_t getVertexIndex(const GPUMemory &memory, uint32_t vertexIndex);
 
 /**
  * @brief Assembles vertex data into an input vertex structure
@@ -273,12 +228,75 @@ uint32_t getVertexIndex(const GPUMemory &memory, uint32_t vertexNumber);
  * @param inVertex Reference to the input vertex structure to be filled with
  *                 assembled data.
  */
-void assembleVertex(const GPUMemory &memory, InVertex &inVertex);
+void vertexAssemblyUnit(const GPUMemory &memory, InVertex &inVertex);
 
 
 /******************************************************************************/
 /*                                                                            */
-/*                     RASTERIZATION inspired by IZG labs                     */
+/*        PRIMITIVE PART of VECTOR GPU PART - PRIMITIVE ASSEMBLY UNIT,        */
+/*          PERSPECTIVE DIVISION, VIEWPORT TRANSFORMATION & CULLING           */
+/*                  ('08 Vektorová část GPU: část přimitiv')                  */
+/*                                                                            */
+/******************************************************************************/
+
+/**
+ * @brief Performs perspective division on clip-space coordinates.
+ *
+ * @details Transforms clip-space coordinates to normalized device coordinates
+ *          (NDC) by dividing the x, y, and z components by the w component.
+ *          This is a  fundamental step in the 3D rendering pipeline that
+ *          creates the perspective effect (objects farther away appear smaller).
+ *          The function also calculates the reciprocal of w (1/w) which is
+ *          needed for perspective-correct interpolation during rasterization.
+ *
+ * @param clipSpacePosition The position in clip space (output from vertex shader).
+ * @param oneOverW Reference parameter that will store the calculated 1/w value.
+ *
+ * @return `glm::vec3` The position in normalized device coordinates (NDC).
+ */
+glm::vec3 perspectiveDivision(const glm::vec4 &clipSpacePosition, float &oneOverW);
+
+/**
+ * @brief Transforms normalized device coordinates to screen space coordinates.
+ *
+ * @details Maps coordinates from normalized device space (range [-1,1] for each
+ *          dimension) to screen space (range [0,width] for x and [0,height] for y).
+ *          This is the final transformation in the vertex processing pipeline
+ *          before rasterization begins, and converts abstract coordinates to
+ *          actual pixel positions on the screen.
+ *
+ * @param normalizedDeviceCoordinates The position in NDC space after perspective
+ *                                    division.
+ * @param width The width of the viewport in pixels.
+ * @param height The height of the viewport in pixels.
+ *
+ * @return `glm::vec3` The position in screen space (screen space coordinates).
+ */
+glm::vec3 viewportTransformation(const glm::vec3 &normalizedDeviceCoordinates,
+                                 uint32_t width, uint32_t height);
+
+/**
+ * @brief Determines if a triangle should be culled based on its orientation.
+ *
+ * @details Implements backface culling to eliminate triangles that face away from
+ *          the camera. This optimization avoids processing pixels that would be
+ *          occluded by front-facing geometry.
+ *
+ * @param triangleVertex Array of three screen-space vertices forming the triangle.
+ * @param backfaceCulling Configuration specifying culling mode (off, cull front,
+ *                        cull back).
+ *
+ * @return `true` if the triangle should be culled (skipped), `false` otherwise.
+ */
+bool backFaceCulling(const glm::vec3 triangleVertex[3], const BackfaceCulling &backfaceCulling);
+
+
+/******************************************************************************/
+/*                                                                            */
+/*       RASTERIZATION inspired by IZG labs - ATTRIBUTES INTERPOLATION,       */
+/*   2D BARYCENTRIC COORD. FOR DEPTH INTERPOLATION AND PERSPECTIVE-CORRECT    */
+/*            BARYCENTRIC COORD. FOR USER ATTRIBUTE INTERPOLATION             */
+/*                             ('09 Rasterizace')                             */
 /*                                                                            */
 /******************************************************************************/
 
@@ -305,47 +323,6 @@ void rasterizeTriangleUsingPineda(const GPUMemory &memory,
                                   const glm::vec3 vertices[3],
                                   const float oneOverW[3]);
 
-
-/******************************************************************************/
-/*                                                                            */
-/*                           RASTERIZATION HELPERS                            */
-/*                                                                            */
-/******************************************************************************/
-
-/**
- * @brief Transforms clip space position to screen space coordinates.
- *
- * @details Performs perspective division (dividing by w) and viewport transformation
- *          to convert clip space coordinates to screen space. This is part of the
- *          graphics pipeline that maps from normalized device coordinates to window
- *          coordinates.
- *
- * @param clipSpacePosition Position in clip space after vertex shader processing.
- * @param width Width of the viewport in pixels.
- * @param height Height of the viewport in pixels.
- * @param oneOverW Output parameter storing 1/w for perspective correct interpolation.
- *
- * @return `glm::vec3` Screen space position (x, y, z) where x and y are pixel
- *         coordinates and z is the depth value.
- */
-glm::vec3 clipSpacePositionToScreenSpace(const glm::vec4 &clipSpacePosition, uint32_t width,
-                                         uint32_t height, float &oneOverW);
-
-/**
- * @brief Determines if a triangle should be culled based on its orientation.
- *
- * @details Implements backface culling to eliminate triangles that face away from
- *          the camera. This optimization avoids processing pixels that would be
- *          occluded by front-facing geometry.
- *
- * @param triangleVertex Array of three screen-space vertices forming the triangle.
- * @param backfaceCulling Configuration specifying culling mode (off, cull front,
- *                        cull back).
- *
- * @return `true` if the triangle should be culled (skipped), `false` otherwise.
- */
-bool backFaceCulling(const glm::vec3 triangleVertex[3], const BackfaceCulling &backfaceCulling);
-
 /**
  * @brief Interpolates vertex attributes for a fragment using barycentric coordinates.
  *
@@ -355,21 +332,24 @@ bool backFaceCulling(const glm::vec3 triangleVertex[3], const BackfaceCulling &b
  *          shading (values from the provoking vertex), while floating-point
  *          attributes are interpolated.
  *
- * @param inFragment Reference to the fragment where interpolated attributes will be stored.
- * @param program The shader program containing vs2fs configuration.
- * @param outVertices Array of three output vertices containing attribute values.
+ * @param program The shader program containing `vs2fs` configuration.
  * @param lambda0 First barycentric coordinate.
  * @param lambda1 Second barycentric coordinate.
  * @param lambda2 Third barycentric coordinate.
+ * @param inFragment Reference to the fragment where interpolated attributes will be stored.
+ * @param outVertices Array of three output vertices containing attribute values.
  */
-void interpolateFragmentAttributes(InFragment &inFragment, const Program &program,
-                                   const OutVertex outVertices[3], float lambda0,
-                                   float lambda1, float lambda2);
+void interpolateFragmentAttributes(const Program &program,
+                                   float lambda0, float lambda1, float lambda2,
+                                   InFragment &inFragment,
+                                   const OutVertex outVertices[3]);
 
 
 /******************************************************************************/
 /*                                                                            */
-/*                          PER FRAGMENT OPERATIONS                           */
+/*                       10-13 PER FRAGMENT OPERATIONS                        */
+/*         (implementation of these function is strongly based on the         */
+/*            description and colorfuĺ graphics in the assignment)            */
 /*                                                                            */
 /******************************************************************************/
 
@@ -386,7 +366,8 @@ void interpolateFragmentAttributes(InFragment &inFragment, const Program &progra
  * @param memory Reference to GPU memory containing stencil test settings.
  * @param frameBuffer Target framebuffer with depth and stencil buffers.
  * @param inFragment Fragment to be tested with position and depth information.
- * @param isFacingFront Boolean indicating if the fragment is from a front-facing primitive.
+ * @param isFacingFront Boolean indicating if the fragment is from a front-facing
+ *                      primitive.
  *
  * @return `true` if the fragment passes all tests and should continue processing,
  *         `false` if the fragment should be discarded.
@@ -437,8 +418,10 @@ void executeStencilOperation(uint8_t &stencilValue, StencilOp stencilOperation,
 
 /********************************************************************************/
 /*                                                                              */
-/*                  CLIPPING inspired by IZG presentation and:                  */
+/*      14 CLIPPING based on IZG presentation description and INSPIRED BY       */
 /* https://www.geeksforgeeks.org/polygon-clipping-sutherland-hodgman-algorithm/ */
+/*         (Note: the snippets in the URL were majorly modified, which          */
+/*        proves my understanding of them and thus it is not plagiarism)        */
 /*                                                                              */
 /********************************************************************************/
 
@@ -488,7 +471,8 @@ bool isVertexInsideClipPlane(const OutVertex &vertex);
  * @param startVertex First vertex of the line segment.
  * @param endVertex Second vertex of the line segment.
  *
- * @return `OutVertex` A new vertex at the intersection point with interpolated attributes.
+ * @return `OutVertex` A new vertex at the intersection point with interpolated
+ *         attributes.
  */
 OutVertex calculateClipPlaneIntersection(const Program &program, const OutVertex &startVertex,
                                          const OutVertex &endVertex);
@@ -504,11 +488,55 @@ OutVertex calculateClipPlaneIntersection(const Program &program, const OutVertex
  * @param program Program containing attribute type information.
  * @param startVertex First source vertex.
  * @param endVertex Second source vertex.
- * @param interpolationFactor Value between `0.0` and `1.0` controlling the interpolation.
+ * @param t Value between `0.0` and `1.0` controlling the interpolation.
  *
  * @return `OutVertex` A new vertex with interpolated position and attributes.
  */
 OutVertex interpolateVertex(const Program &program, const OutVertex &startVertex,
-                            const OutVertex &endVertex, float interpolationFactor);
+                            const OutVertex &endVertex, float t);
+
+
+/******************************************************************************/
+/*                                                                            */
+/*                          GENERAL HELPER FUNCTIONS                          */
+/*                                                                            */
+/******************************************************************************/
+
+/**
+ * @brief Gets a pointer to a pixel in an image, handling y-coordinate
+ *        reversal if needed.
+ *
+ * @param image Reference to the image.
+ * @param x X-coordinate of the pixel.
+ * @param y Y-coordinate of the pixel.
+ * @param height Height of the image.
+ * @param yReversed Flag indicating if y-coordinates are stored in reverse order.
+ *
+ * @return `uint8_t*` Pointer to the specified pixel data.
+ */
+uint8_t *getPixelMaybeReversed(const Image &image, uint32_t x, uint32_t y,
+                               uint32_t height, bool yReversed);
+
+/**
+ * @brief Converts a normalized float value <0.0, 1.0> to an unsigned 8-bit
+ *        integer <0, 255>.
+ *
+ * @param value Float value to convert (expected to be in range <0.0, 1.0>).
+ *
+ * @return `uint8_t` Converted 8-bit unsigned integer value.
+ */
+uint8_t castNormalizedFloatToUnsignedInt8(float value);
+
+/**
+ * @brief Converts an 8-bit unsigned integer to a normalized float value.
+ *
+ * @details Transforms an 8-bit unsigned integer (0-255) to a float value
+ *          in the normalized range <0.0, 1.0>. This is the inverse operation
+ *          of castNormalizedFloatToUnsignedInt8.
+ *
+ * @param value The 8-bit unsigned integer value to convert.
+ * @return `float` Normalized float value in range <0.0, 1.0>.
+ */
+float castUnsignedInt8ToNormalizedFloat(uint8_t value);
 
 /*** end of file gpu.hpp ***/
