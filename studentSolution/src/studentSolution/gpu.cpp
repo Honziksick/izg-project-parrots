@@ -958,21 +958,11 @@ inline bool executeEarlyPerFragmentOperations(const GPUMemory &memory, const Fra
                                                                                 static_cast<uint32_t>(inFragment.gl_FragCoord.y), frameBuffer.height,
                                                                                 frameBuffer.yReversed));
 
-        // Perform depth test (z >= buffer depth means fragment is behind what's already there)
+        // Perform depth test (z > buffer depth means fragment is behind what's already there)
         if(*pDepthPixel > inFragment.gl_FragCoord.z) {
             // dppass
             if(!memory.blockWrites.depth) {
                 *pDepthPixel = inFragment.gl_FragCoord.z;
-            }
-
-            // Is stencil test active?           // BlockStencil Writes         // Has stencil buffer?
-            if(memory.stencilSettings.enabled && !memory.blockWrites.stencil && frameBuffer.stencil.data) {
-                uint8_t *pStencilPixel = getPixelMaybeReversed(frameBuffer.stencil, static_cast<uint32_t>(inFragment.gl_FragCoord.x),
-                                                               static_cast<uint32_t>(inFragment.gl_FragCoord.y), frameBuffer.height,
-                                                               frameBuffer.yReversed);
-
-                // Mofidy stencil buffer using dppas Op
-                executeStencilOperation(*pStencilPixel, dppass, memory.stencilSettings.refValue); // dppass
             }
 
             return true; // fragment processing continues (goes to fragment shader)
@@ -1043,16 +1033,31 @@ inline void executeLatePerFragmentOperations(const GPUMemory &memory, const Fram
                                                      frameBuffer.yReversed);
 
         // We need to convert the color from byte <0, 255> to normalized float <0.0, 1.0>
-        glm::vec4 existingColor;
-        existingColor.r = castUnsignedInt8ToNormalizedFloat(pColorPixel[Image::RED]);
-        existingColor.g = castUnsignedInt8ToNormalizedFloat(pColorPixel[Image::GREEN]);
-        existingColor.b = castUnsignedInt8ToNormalizedFloat(pColorPixel[Image::BLUE]);
+        glm::vec4 existingColor(0.f, 0.f, 0.f, 0.f);
+        for(uint32_t iChannel = 0; iChannel < frameBuffer.color.channels; iChannel++) {
+            switch(frameBuffer.color.channelTypes[iChannel]) {
+                case Image::RED:
+                    existingColor.r = castUnsignedInt8ToNormalizedFloat(pColorPixel[iChannel]);
+                    break;
+                case Image::GREEN:
+                    existingColor.g = castUnsignedInt8ToNormalizedFloat(pColorPixel[iChannel]);
+                    break;
+                case Image::BLUE:
+                    existingColor.b = castUnsignedInt8ToNormalizedFloat(pColorPixel[iChannel]);
+                    break;
+                case Image::ALPHA:
+                    existingColor.a = castUnsignedInt8ToNormalizedFloat(pColorPixel[iChannel]);
+                    break;
+                default:
+                    break;
+            }
+        }
 
         // Support both RGBA and RGB formats (just to be sure, even though the assignment states we use RGBA)
         const bool hasAlphaChannel = (frameBuffer.color.bytesPerPixel == 4);
         existingColor.a = hasAlphaChannel
                               ? castUnsignedInt8ToNormalizedFloat(pColorPixel[Image::ALPHA])
-                              : 0.f;
+                              : 1.f;
 
         // New fragment color
         const glm::vec4 fragmentColor = outFragment.gl_FragColor;
