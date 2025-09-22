@@ -1,7 +1,5 @@
-# IZG - Semestrální projekt: xxx
+# IZG - Semestrální projekt: Papoušci
 
-## Hodnocení 
+## Hodnocení
 
-**Hodnocení**: xx.xx/xx.xx b.
-
-## Zadání
+**Hodnocení**: 20.00/20.00 b.
